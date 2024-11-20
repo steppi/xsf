@@ -1,5 +1,6 @@
 import functools
 import math
+import numpy as np
 import typing
 
 from mpmath import mp  # type: ignore
@@ -134,3 +135,54 @@ def reference_implementation(func):
 
     wrapper.__annotations__ =  typing.get_type_hints(func)
     return wrapper
+
+
+def random_floating_point_numbers(
+        min_exp,
+        max_exp,
+        /,
+        size=1,
+        *,
+        include_negative=True,
+        rng=None,
+        precision="double"
+):
+    if rng is None:
+        rng = np.random.default_rng()
+
+    match precision:
+        case "double":
+            num_exponent_bits = 11
+            num_mantissa_bits = 52
+            bias = 1023
+            dtype = np.float64
+            uint_dtype = np.uint64
+        case "float":
+            num_exponent_bits = 8
+            num_mantissa_bits = 23
+            bias = 127
+            dtype = np.float32
+            uint_dtype = np.uint32
+        case _:
+            raise ValueError(
+                "precison must be one of \"double\" or \"float\", "
+                f"received {precision}"
+            )
+    assert min_exp <= max_exp
+    assert min_exp >= -bias
+
+    exponents = rng.integers(min_exp, max_exp + 1, size=size)
+    biased_exponents = (exponents + bias).astype(uint_dtype)
+    mantissas = rng.integers(
+        0, 1 << num_mantissa_bits, size=size, dtype=uint_dtype
+    )
+
+    if include_negative:
+        sign = rng.integers(0, 2, size=size, dtype=uint_dtype)
+    else:
+        sign = np.zeros(size, dtype=uint_dtype)
+
+    sign <<= (num_exponent_bits + num_mantissa_bits)
+    biased_exponents <<= num_mantissa_bits
+
+    return (sign | biased_exponents | mantissas).view(dtype=dtype)
