@@ -99,7 +99,7 @@ def bdtr(k: float, n: float, p: float) -> float:
 @reference_implementation
 def bdtrc(k: float, n: float, p: float) -> float:
     """Binomial distribution survival function."""
-    k, n = mp.floor(k), mp.floor(n), m
+    k, n = mp.floor(k), mp.floor(n)
     return mp.betainc(k + 1, n - k, 0, p, regularized=True)
 
 
@@ -372,7 +372,7 @@ def ellipj(u: float, m: float) -> Tuple[float, float, float, float]:
     cn = mp.ellipfun("cn", u=u, m=m)
     dn = mp.ellipfun("dn", u=u, m=m)
     phi = mp.asin(sn)
-    return sc, cd, dn, phi
+    return sn, cn, dn, phi
 
 
 @reference_implementation
