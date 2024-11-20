@@ -1,4 +1,5 @@
 import functools
+import math
 import typing
 
 from mpmath import mp  # type: ignore
@@ -73,30 +74,49 @@ def process_output(args, output_types):
             else:
                 output.append(math.nan)
         else:
-            output.append(float(arg))
-    return tuple(output)
+            if output_type is float:
+                output.append(float(arg))
+            else:
+                # We expect a complex result but got a real output value. If
+                # it's a nan, make sure imaginary part is nan too.
+                if mp.isnan(arg):
+                    output.append(complex(math.nan, math.nan))
+                else:
+                    output.append(complex(arg))
+    output = tuple(output)
+    return output[0] if len(output) == 1 else output
 
 
 def get_signatures(func):
     type_hints = typing.get_type_hints(func)
     if type_hints:
-        input_types, output_types = _signature_from_type_hints(typing.get_type_hints(func))
+        input_types, output_types = signature_from_type_hints(
+            typing.get_type_hints(func)
+        )
         return {input_types: output_types}
     signatures = {}
     for overload in typing.get_overloads(func):
-        input_types, output_types = _signature_from_type_hints(typing.get_type_hints(overload))
+        input_types, output_types = signature_from_type_hints(
+            typing.get_type_hints(overload)
+        )
         signatures[input_types] = output_types
     return signatures
 
 
 def reference_implementation(func):
     overloads = typing.get_overloads(func)
-    annotations_code = ""    
+    annotations_code = ""
     for overload_def in overloads:
         type_hints = overload_def.__annotations__
         return_type = type_hints['return']
-        return_type = return_type.__name__ if return_type in [float, complex] else return_type
-        input_types = ((key, val.__name__) for key, val in type_hints.items() if key != 'return')
+        return_type = (
+            return_type.__name__ if return_type in [float, complex]
+            else return_type
+        )
+        input_types = (
+            (key, val.__name__) for key, val in type_hints.items()
+            if key != 'return'
+        )
         annotations_code += (
             "@overload\n"
             "def wrapper("
