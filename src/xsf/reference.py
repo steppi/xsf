@@ -489,8 +489,10 @@ def gamma(x: complex) -> complex: ...
 def gamma(x):
     """Gamma function."""
     if x == 0.0:
-        return math.copysign(math.inf, x)
-    if x < 0 and x == int(x):
+        if isinstance(x, float):
+            return math.copysign(mp.inf, x)
+        return mp.nan
+    if x.real < 0 and x.imag == 0 and x == int(x):
         return mp.nan
     return mp.gamma(x)
 
@@ -510,6 +512,8 @@ def gammaincc(a: float, x: float) -> float:
 @reference_implementation
 def gammaln(x: float) -> float:
     """Logarithm of the absolute value of the gamma function."""
+    if x.real <= 0 and x == int(x):
+        return mp.inf
     return mp.log(abs(mp.gamma(x)))
 
 
