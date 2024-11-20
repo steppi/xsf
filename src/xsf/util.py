@@ -5,7 +5,10 @@ from mpmath import mp  # type: ignore
 from typing import overload
 
 
-def _signature_from_type_hints(type_hints):
+__all__ = ["get_signatures", "reference_implementation"]
+
+
+def signature_from_type_hints(type_hints):
     input_types = []
     for key, val in type_hints.items():
         if key != "return":
