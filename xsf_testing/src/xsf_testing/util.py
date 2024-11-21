@@ -60,7 +60,7 @@ def process_args(func, *args):
             if x.real == 0:
                 z += mp.mpc(f"1e-{10**500}") * math.copysign(1, x.real)
             if x.imag == 0:
-                z += mp.mpc(f"1e-{10**500}j") * math.copysign(1, x.real)
+                z += mp.mpc("0.0", f"1e-{10**500}") * math.copysign(1, x.imag)
             new_args.append(z)
     return tuple(new_args), output_types
 
