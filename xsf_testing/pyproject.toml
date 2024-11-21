@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xsf_testing"
+version = "0.0.0"
+license = {file = "LICENSE"}
+maintainers = [
+            {name = "xsf developers", email = "albert.steppi@gmail.com"}
+]
+requires-python = ">=3.11"
+dependencies = ["mpmath", "numpy"]
+readme = "README.md"

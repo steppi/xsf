@@ -3,7 +3,7 @@ import math
 from mpmath import mp  # type: ignore
 from typing import overload, Tuple
 
-from util import reference_implementation
+from xsf_testing.util import reference_implementation
 
 
 @overload
