@@ -2,6 +2,7 @@ import functools
 import math
 import numpy as np
 import typing
+import re
 
 from mpmath import mp  # type: ignore
 from typing import overload
@@ -50,18 +51,14 @@ def process_args(func, *args):
         elif type_ is int:
             new_args.append(mp.mpf(x))
         elif type_ is complex:
-            z = mp.mpc(x)
-            # Work around for lack of signed zeros in mpmath.
-            if (x == 0):
+            # Again mpmath doesn't have signed zeros, so if the real or
+            # imaginary part are zero, we just pass through a complex
+            # float. This should be kept in mind for the cases where
+            # this might matter.
+            if (x.real == 0 or x.imag) == 0:
                 new_args.append(x)
-                continue
-            # If real and/or imaginary part is zero, convert to a vanishingly
-            # small quantity, preserving the sign of zero.
-            if x.real == 0:
-                z += mp.mpc(f"1e-{10**500}") * math.copysign(1, x.real)
-            if x.imag == 0:
-                z += mp.mpc("0.0", f"1e-{10**500}") * math.copysign(1, x.imag)
-            new_args.append(z)
+            else:
+                new_args.append(mp.mpc(x))
     return tuple(new_args), output_types
 
 
@@ -134,55 +131,59 @@ def reference_implementation(func):
         return process_output(result, output_types)
 
     wrapper.__annotations__ =  typing.get_type_hints(func)
+    setattr(wrapper, f"mp_{func.__name__}", func)
     return wrapper
 
 
-def random_floating_point_numbers(
-        min_exp,
-        max_exp,
-        /,
-        size=1,
-        *,
-        include_negative=True,
-        rng=None,
-        precision="double"
-):
-    if rng is None:
-        rng = np.random.default_rng()
+def _parse_exceptional_cases(func):
+    pattern = r"Exceptional Cases\s*-+\n([\s\S]+?)(?=\n\n|$)"
+    match_ = re.search(pattern, func.__doc__)
+    if not match_:
+        return []
+    exceptional_cases = match_.group(1).strip()
+    result = []
+    for line in exceptional_cases.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            input_, output = line.split(": ")
+        except ValueError as e:
+            raise ValueError(f"Invalid line in exceptional cases, {line}") from e
+        if frozenset([input_[0], input_[-1], output[0], output[-1]]) != frozenset(["`"]):
+            raise ValueError(f"Invalid line in exceptional cases, {line}")
+        input_, output = input_[1:-1], output[1:-1]
+        if "`" in input_ or "`" in output:
+            raise ValueError(f"Invalid line in exceptional cases, {line}")
+        result.append((input_, output))
+    return result
 
-    match precision:
-        case "double":
-            num_exponent_bits = 11
-            num_mantissa_bits = 52
-            bias = 1023
-            dtype = np.float64
-            uint_dtype = np.uint64
-        case "float":
-            num_exponent_bits = 8
-            num_mantissa_bits = 23
-            bias = 127
-            dtype = np.float32
-            uint_dtype = np.uint32
-        case _:
-            raise ValueError(
-                "precison must be one of \"double\" or \"float\", "
-                f"received {precision}"
-            )
-    assert min_exp <= max_exp
-    assert min_exp >= -bias
 
-    exponents = rng.integers(min_exp, max_exp + 1, size=size)
-    biased_exponents = (exponents + bias).astype(uint_dtype)
-    mantissas = rng.integers(
-        0, 1 << num_mantissa_bits, size=size, dtype=uint_dtype
-    )
+class IntegerInterval:
+    def __init__(self, interval: str):
+        match interval[0]:
+            case "[":
+                pass
+            case "(":
+                pass
+            case _:
+                raise ValueError(f"Invalid input interval, {interval}")
 
-    if include_negative:
-        sign = rng.integers(0, 2, size=size, dtype=uint_dtype)
-    else:
-        sign = np.zeros(size, dtype=uint_dtype)
+        match interval[-1]:
+            case "]":
+                pass
+            case ")":
+                pass
+            case _:
+                raise ValueError(f"Invalid input interval, {interval}")
+            
 
-    sign <<= (num_exponent_bits + num_mantissa_bits)
-    biased_exponents <<= num_mantissa_bits
-
-    return (sign | biased_exponents | mantissas).view(dtype=dtype)
+    def sample(shape, *, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+        
+        
+            
+        
+        
+    
