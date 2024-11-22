@@ -62,7 +62,7 @@ def decompose_float(x):
     exponent = (bits & exponent_mask) >> num_mantissa_bits
     mantissa_mask = (1 << num_mantissa_bits) - 1
     mantissa = bits & mantissa_mask
-    return sign, exponent, mantissa
+    return int(sign), int(exponent), int(mantissa)
 
 
 def count_floats_in_range(x, y):
@@ -81,6 +81,9 @@ def count_floats_in_range(x, y):
             + count_floats_in_range(type(y)(0.0), y)
         )
 
+    if x < y <  0:
+        return count_floats_in_range(-y, -x)
+
     num_mantissa_bits = np.finfo(type(x)).nmant
 
     sign_x, exp_x, mantissa_x = decompose_float(x)
@@ -90,6 +93,7 @@ def count_floats_in_range(x, y):
 
     if exp_x == exp_y:
         return mantissa_y - mantissa_x + 1
+
 
     count_left_bucket = largest_mantissa - mantissa_x + 1
     count_right_bucket = mantissa_y + 1
@@ -172,3 +176,89 @@ def random_floating_point_numbers(x, y, /, *, shape=1, rng=None):
         type(y)(0.0), y, shape=num_right
     )
     return result
+
+
+def random_complex_numbers(x0, x1, y0, y1, /, *, shape=1, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    x = random_floating_point_numbers(x0, x1, shape=shape, rng=rng)
+    y = random_floating_point_numbers(y0, y1, shape=shape, rng=rng)
+    z = x + y*1j
+    return z
+
+
+def test_values_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    assert open_bracket in ["[", "("]
+    assert close_bracket in ["]", ")"]
+    assert x < y
+    assert n >= 2
+    assert type(x) == type(y)
+
+    eps = np.finfo(type(x)).eps
+
+    endpoints = []
+    if open_bracket == "[":
+        endpoints.append(x)
+    x = np.nextafter(x, np.inf)
+    if close_bracket == "]":
+        endpoints.append(y)
+    y = np.nextafter(y, -np.inf)
+    endpoints = np.asarray(endpoints)
+
+    num_remaining_cases = n - len(endpoints)
+
+    intervals = [
+        (max(eps, x), y),
+        (x, min(-eps, y)),
+        (max(x, -eps), min(y, eps)),
+    ]
+    includes = np.fromiter((a < b for a, b in intervals), dtype=np.bool)
+
+    if np.all(includes):
+        proportions = np.array([0.45, 0.45, 0.1])
+    elif np.all(includes == np.array([True, True, False])):
+        proportions = [0.5, 0.5, 0.0]
+    elif np.sum(includes == 2):
+        proportions = np.array([0.0, 0.0, 0.1])
+        for i, b in enumerate(includes[:-1]):
+            if i:
+                proportions[i] = 0.9
+    else:
+        proportions = np.array(includes, dtype=type(x))
+
+    which = rng.choice(np.arange(0, 3), p=proportions, size=num_remaining_cases)
+    result = np.empty(num_remaining_cases, dtype=type(x))
+
+    if includes[0]:
+        result[which == 0] = random_floating_point_numbers(
+            *intervals[0], shape=np.sum(which == 0), rng=rng
+        )
+    if includes[1]:
+        result[which == 1] = random_floating_point_numbers(
+            *intervals[1], shape=np.sum(which == 1), rng=rng
+        )
+    if includes[2]:
+        result[which == 2] = random_floating_point_numbers(
+            *intervals[2], shape=np.sum(which == 2), rng=rng
+        )
+
+    return np.concatenate([endpoints, result])
+        
+        
+    
+
+    
+
+
+
+
+
+
+
+
+ 
+
+
+
