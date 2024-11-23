@@ -10,5 +10,5 @@ maintainers = [
             {name = "xsf developers", email = "albert.steppi@gmail.com"}
 ]
 requires-python = ">=3.11"
-dependencies = ["mpmath", "numpy"]
+dependencies = ["mpmath", "numpy", "pytest"]
 readme = "README.md"

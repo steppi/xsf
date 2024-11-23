@@ -141,7 +141,7 @@ def _parse_exceptional_cases(func):
     if not match_:
         return []
     exceptional_cases = match_.group(1).strip()
-    result = []
+    cases = []
     for line in exceptional_cases.split("\n"):
         line = line.strip()
         if not line:
@@ -155,32 +155,9 @@ def _parse_exceptional_cases(func):
         input_, output = input_[1:-1], output[1:-1]
         if "`" in input_ or "`" in output:
             raise ValueError(f"Invalid line in exceptional cases, {line}")
-        result.append((input_, output))
+        cases.append((input_, output))
+    
     return result
-
-
-class IntegerInterval:
-    def __init__(self, interval: str):
-        match interval[0]:
-            case "[":
-                pass
-            case "(":
-                pass
-            case _:
-                raise ValueError(f"Invalid input interval, {interval}")
-
-        match interval[-1]:
-            case "]":
-                pass
-            case ")":
-                pass
-            case _:
-                raise ValueError(f"Invalid input interval, {interval}")
-            
-
-    def sample(shape, *, rng=None):
-        if rng is None:
-            rng = np.random.default_rng()
         
         
             
