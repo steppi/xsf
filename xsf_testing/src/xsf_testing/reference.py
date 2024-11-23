@@ -487,7 +487,23 @@ def gamma(x: complex) -> complex: ...
 
 @reference_implementation
 def gamma(x):
-    """Gamma function."""
+    """Gamma function.
+
+    Tested Range
+    ------------
+    x:
+        float: `[-171.624376956302725, 171.624376956302725]`
+        complex: `|x| < 200`
+
+    Exceptional Cases
+    -----------------
+    `+0.0`: `+inf`
+    `-0.0`: `-inf`
+    `+inf`: `+inf`
+    `-inf`: `nan`
+    `Integers(-inf, 0)`: `nan`
+    `(n + 0j for n in Integers(-inf, 0])`: `complex(nan, nan)`
+    """
     if x == 0.0:
         if isinstance(x, float):
             return math.copysign(mp.inf, x)
