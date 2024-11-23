@@ -492,7 +492,7 @@ def gamma(x):
         if isinstance(x, float):
             return math.copysign(mp.inf, x)
         return mp.nan
-    if x.real < 0 and x.imag == 0 and x == int(x):
+    if x.real < 0 and x.imag == 0 and x.real == int(x.real):
         return mp.nan
     return mp.gamma(x)
 
