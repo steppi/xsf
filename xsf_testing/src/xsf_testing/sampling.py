@@ -178,15 +178,6 @@ def random_floating_point_numbers(x, y, /, *, shape=1, rng=None):
     return result
 
 
-def random_complex_numbers(x0, x1, y0, y1, /, *, shape=1, rng=None):
-    if rng is None:
-        rng = np.random.default_rng()
-    x = random_floating_point_numbers(x0, x1, shape=shape, rng=rng)
-    y = random_floating_point_numbers(y0, y1, shape=shape, rng=rng)
-    z = x + y*1j
-    return z
-
-
 def test_values_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng=None):
     if rng is None:
         rng = np.random.default_rng()
@@ -245,11 +236,28 @@ def test_values_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng
         )
 
     return np.concatenate([endpoints, result])
-        
-        
-    
 
-    
+
+def test_values_from_complex_box(x0, x1, y0, y1, /, *, n=10, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    x = test_values_from_interval("(", x0, x1, ")", n=n, rng=rng)
+    y = test_values_from_interval("(", y0, y1, ")", n=n, rng=rng)
+    z = x + y*1j
+    return z
+
+
+def test_values_from_complex_disk(center, radius, /, *, n=10, rng=None):
+    z = test_values_from_complex_box(
+        center.real - radius,
+        center.real + radius,
+        center.imag - radius,
+        center.imag + radius,
+        n=int(np.ceil(4/np.pi * n)),
+        rng=rng,
+    )
+    z = z[abs(z - center)**2 <= radius]
+    return z[:n]
 
 
 
