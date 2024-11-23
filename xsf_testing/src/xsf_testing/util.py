@@ -158,9 +158,3 @@ def _parse_exceptional_cases(func):
         cases.append((input_, output))
     
     return result
-        
-        
-            
-        
-        
-    
