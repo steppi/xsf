@@ -1,3 +1,5 @@
+import atexit
+import csv
 import functools
 import math
 import numpy as np
@@ -135,26 +137,65 @@ def reference_implementation(func):
     return wrapper
 
 
-def _parse_exceptional_cases(func):
+def _parse_exceptional_cases(docstring):
     pattern = r"Exceptional Cases\s*-+\n([\s\S]+?)(?=\n\n|$)"
-    match_ = re.search(pattern, func.__doc__)
+    match_ = re.search(pattern, docstring)
     if not match_:
         return []
     exceptional_cases = match_.group(1).strip()
-    cases = []
-    for line in exceptional_cases.split("\n"):
+
+    current_type = None
+    cases = {"real": [], "complex": []}
+    for i, line in enumerate(exceptional_cases.split("\n")):
         line = line.strip()
-        if not line:
+        if line == "real:":
+            current_type = "real"
             continue
+        if line == "complex:":
+            current_type = "complex"
+            continue
+        if current_type is None:
+            raise ValueError(f"Line {i+1} invalid, \"{line}\"")
         try:
             input_, output = line.split(": ")
         except ValueError as e:
-            raise ValueError(f"Invalid line in exceptional cases, {line}") from e
+            raise ValueError(f"Line {i+1} invalid, \"{line}\"") from e
         if frozenset([input_[0], input_[-1], output[0], output[-1]]) != frozenset(["`"]):
-            raise ValueError(f"Invalid line in exceptional cases, {line}")
+            raise ValueError(f"Line {i+1} invalid, {line}")
         input_, output = input_[1:-1], output[1:-1]
         if "`" in input_ or "`" in output:
-            raise ValueError(f"Invalid line in exceptional cases, {line}")
-        cases.append((input_, output))
-    
-    return result
+            raise ValueError(f"Line {i+1} invalid, \"{line}\"")
+        cases[current_type].append((input_, output))
+    return cases
+
+
+class TracedUfunc:
+    def __init__(self, ufunc, /, *, outpath=None):
+        self.__ufunc = ufunc
+        self.__trace = []
+        self.__outpath = outpath
+        self.__lock = Lock()
+        atexit.register(self.dump)
+
+    def __call__(self, *args, **kwargs):
+        self.__trace.append({"args": args, "kwargs": kwargs})
+        return self.__ufunc(*args, **kwargs)
+
+    @property
+    def trace(self):
+        output = []
+        for entry in self.__trace:
+            args = np.broadcast_arrays(*entry["args"])
+            args = [val.flatten() for val in args]
+            output.extend([row for row in zip(*args)])
+        return output
+
+    @property
+    def _outpath(self):
+        return self.__outpath
+
+    def dump(self):
+        if self.__outpath is not None:
+            with self.__lock:
+                with open(self.__outpath, 'a', newline='') as csvfile:
+                    csv.writer(csvfile).writerows(self.trace)

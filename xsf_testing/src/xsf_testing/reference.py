@@ -487,23 +487,7 @@ def gamma(x: complex) -> complex: ...
 
 @reference_implementation
 def gamma(x):
-    """Gamma function.
-
-    Tested Range
-    ------------
-    x:
-        float: `[-171.624376956302725, 171.624376956302725]`
-        complex: `|x| < 200`
-
-    Exceptional Cases
-    -----------------
-    `+0.0`: `+inf`
-    `-0.0`: `-inf`
-    `+inf`: `+inf`
-    `-inf`: `nan`
-    `Integers(-inf, 0)`: `nan`
-    `(n + 0j for n in Integers(-inf, 0])`: `complex(nan, nan)`
-    """
+    """Gamma function."""
     if x == 0.0:
         if isinstance(x, float):
             return math.copysign(mp.inf, x)
@@ -618,6 +602,9 @@ def hyp2f1(a: float, b: float, c: float, z: complex) -> complex: ...
 @reference_implementation
 def hyp2f1(a, b, c, z):
     """Gauss hypergeometric function 2F1(a, b; c; z)."""
+    if z.imag == 0 and z.real > 1:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.hyp2f1(a, b, c, z)
 
 

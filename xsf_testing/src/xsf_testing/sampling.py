@@ -1,47 +1,5 @@
+import itertools as it
 import numpy as np
-
-
-def _random_floating_point_numbers(
-        min_exp,
-        max_exp,
-        /,
-        shape=1,
-        *,
-        precision="double",
-        rng=None,
-):
-    if rng is None:
-        rng = np.random.default_rng()
-
-    match precision:
-        case "double":
-            num_exponent_bits = 11
-            num_mantissa_bits = 52
-            bias = 1023
-            dtype = np.float64
-            uint_dtype = np.uint64
-        case "float":
-            num_exponent_bits = 8
-            num_mantissa_bits = 23
-            bias = 127
-            dtype = np.float32
-            uint_dtype = np.uint32
-        case _:
-            raise ValueError(
-                "precison must be one of \"double\" or \"float\", "
-                f"received {precision}"
-            )
-    assert min_exp <= max_exp
-    assert min_exp >= -bias
-
-    exponents = rng.integers(min_exp, max_exp + 1, size=size)
-    biased_exponents = (exponents + bias).astype(uint_dtype)
-    mantissas = rng.integers(
-        0, 1 << num_mantissa_bits, size=size, dtype=uint_dtype
-    )
-
-    biased_exponents <<= num_mantissa_bits
-    return (biased_exponents | mantissas).view(dtype=dtype)
 
 
 def decompose_float(x):
@@ -51,7 +9,6 @@ def decompose_float(x):
     finfo = np.finfo(type(x))
     num_exponent_bits = finfo.nexp
     num_mantissa_bits = finfo.nmant
-    bias = 2**(num_exponent_bits - 1) - 1
     dtype = type(x)
     uint_dtype = np.dtype(f"uint{finfo.bits}")
 
@@ -120,7 +77,6 @@ def _random_floating_point_numbers_nonnegative(x, y, /, *, shape=1, rng=None):
     finfo = np.finfo(type(x))
     num_exponent_bits = finfo.nexp
     num_mantissa_bits = finfo.nmant
-    bias = 2**(num_exponent_bits - 1) - 1
     dtype = type(x)
     uint_dtype = np.dtype(f"uint{finfo.bits}")
 
@@ -178,7 +134,7 @@ def random_floating_point_numbers(x, y, /, *, shape=1, rng=None):
     return result
 
 
-def test_values_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng=None):
+def sample_cases_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng=None):
     if rng is None:
         rng = np.random.default_rng()
     assert open_bracket in ["[", "("]
@@ -238,17 +194,17 @@ def test_values_from_interval(open_bracket, x, y, close_bracket, /, *, n=10, rng
     return np.concatenate([endpoints, result])
 
 
-def test_values_from_complex_box(x0, x1, y0, y1, /, *, n=10, rng=None):
+def sample_cases_from_complex_box(x0, x1, y0, y1, /, *, n=10, rng=None):
     if rng is None:
         rng = np.random.default_rng()
-    x = test_values_from_interval("(", x0, x1, ")", n=n, rng=rng)
-    y = test_values_from_interval("(", y0, y1, ")", n=n, rng=rng)
+    x = sample_cases_from_interval("(", x0, x1, ")", n=n, rng=rng)
+    y = sample_cases_from_interval("(", y0, y1, ")", n=n, rng=rng)
     z = x + y*1j
-    return z
+    return z;
 
 
-def test_values_from_complex_disk(center, radius, /, *, n=10, rng=None):
-    z = test_values_from_complex_box(
+def sample_cases_from_complex_disk(center, radius, /, *, n=10, rng=None):
+    z = sample_cases_from_complex_box(
         center.real - radius,
         center.real + radius,
         center.imag - radius,
@@ -258,6 +214,22 @@ def test_values_from_complex_disk(center, radius, /, *, n=10, rng=None):
     )
     z = z[abs(z - center)**2 <= radius]
     return z[:n]
+
+
+def sample_integer_cases(*, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    out = []
+    out.append(np.arange(-10, 11))
+    out.append(rng.integers(11, 101, size=10))
+    out.append(rng.integers(-1000, 1001, size=10))
+    out.append(1000.0 + np.ceil(rng.pareto(0.01, size=10)))
+    return np.concatenate(out)
+        
+        
+    
+
+    
 
 
 
