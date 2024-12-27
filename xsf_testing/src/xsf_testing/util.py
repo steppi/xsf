@@ -74,9 +74,12 @@ def process_output(args, output_types):
             if output_type is complex:
                 output.append(complex(arg))
             else:
-                # Expected a real result, but got complex. Convention is to return
-                # nan in this case.
-                output.append(math.nan)
+                if abs(arg.imag) == 0:
+                    output.append(float(arg))
+                else:
+                    # Expected a real result, but got complex. Convention is to return
+                    # nan in this case.
+                    output.append(math.nan)
         else:
             if output_type is float:
                 output.append(float(arg))
