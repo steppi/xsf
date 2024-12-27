@@ -14,7 +14,12 @@ def airy(x: complex) -> Tuple[complex, complex, complex, complex]: ...
 
 @reference_implementation
 def airy(z):
-    """Airy functions and their derivatives."""
+    """Airy functions and their derivatives.
+
+    Notes
+    -----
+    Airy functions are entire
+    """
     ai = mp.airyai(z)
     aip = mp.airyai(z, derivative=1)
     bi = mp.airybi(z)
@@ -30,7 +35,12 @@ def airye(x: complex) -> Tuple[complex, complex, complex, complex]: ...
 
 @reference_implementation
 def airye(z):
-    """Exponentially scaled Airy functions and their derivatives."""
+    """Exponentially scaled Airy functions and their derivatives.
+
+    Notes
+    -----
+    Scaled Airy functions are entire
+    """
     eai = mp.airyai(z) * mp.exp(mp.mpf("2.0") / mp.mpf("3.0") * z * mp.sqrt(z))
     eaip = mp.airyai(z, derivative=1) * mp.exp(
         mp.mpf("2.0") / mp.mpf("3.0") * z * mp.sqrt(z)
@@ -187,10 +197,16 @@ def cyl_bessel_i(v: float, z:complex) -> complex: ...
 
 
 def cyl_bessel_i(v, z):
-    """Modified Bessel function of the first kind."""
+    """Modified Bessel function of the first kind.
+
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.besseli(v, z)
 
 
@@ -202,10 +218,15 @@ def cyl_bessel_ie(v: float, z:complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_ie(v, x):
-    """Exponentially scaled modified Bessel function of the first kind."""
+    """Exponentially scaled modified Bessel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(-abs(z.real)) * mp.besseli(v, w)
 
 
@@ -229,10 +250,15 @@ def cyl_bessel_j(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_j(v, z):
-    """Bessel function of the first kind."""
+    """Bessel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.besselj(v, z)
 
 
@@ -244,10 +270,15 @@ def cyl_bessel_je(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_je(v, z):
-    """Exponentially scaled Bessel function of the first kind."""
+    """Exponentially scaled Bessel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(-abs(z.imag)) * mp.besselj(v, w)
 
 
@@ -283,10 +314,15 @@ def cyl_bessel_k(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_k(v, z):
-    """Modified Bessel function of the second kind."""
+    """Modified Bessel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.besselk(v, z)
 
 
@@ -298,10 +334,15 @@ def cyl_bessel_ke(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_ke(v, z):
-    """Exponentially scaled modified Bessel function of the second kind."""
+    """Exponentially scaled modified Bessel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(z) * mp.besselk(v, w)
 
 
@@ -325,10 +366,15 @@ def cyl_bessel_y(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_y(v, z):
-    """Bessel function of the second kind."""
+    """Bessel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.bessely(v, z)
 
 
@@ -340,10 +386,15 @@ def cyl_bessel_ye(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def cyl_bessel_ye(v, z):
-    """Exponentially scaled Bessel function of the second kind."""
+    """Exponentially scaled Bessel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.bessely(w, z) * mp.exp(-abs(z.imag))
 
 
@@ -355,7 +406,12 @@ def digamma(x: complex) -> complex: ...
 
 @reference_implementation
 def digamma(x):
-    """The digamma function."""
+    """The digamma function.
+
+    Notes
+    -----
+    Poles at nonpositive integers.
+    """
     return mp.digamma(x)
 
 
@@ -425,7 +481,15 @@ def exp1(x: complex) -> complex: ...
 
 @reference_implementation
 def exp1(x):
-    """Exponential integral E1."""
+    """Exponential integral E1.
+
+    Notes
+    -----
+    Logarithmic singularity at x = 0 with branch cut on (-inf, 0).
+    """
+    if x.imag == 0 and x.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        x += mp.mpc("0", "1e-1000000000") * math.copysign(x.imag)
     return mp.e1(x)
 
 
@@ -449,7 +513,15 @@ def expi(x: complex) -> complex: ...
 
 @reference_implementation
 def expi(x):
-    """Exponential integral Ei."""
+    """Exponential integral Ei.
+
+    Notes
+    -----
+    Logarithmic singularity at x = 0 with branch cut on (-inf, 0).
+    """
+    if x.imag == 0 and x.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        x += mp.mpc("0", "1e-1000000000") * math.copysign(x.imag)
     return mp.ei(x)
 
 
@@ -499,7 +571,12 @@ def fresnel(x: complex) -> Tuple[complex, complex]: ...
 
 @reference_implementation
 def fresnel(x):
-    """Fresnel integrals."""
+    """Fresnel integrals.
+
+    Notes
+    -----
+    Fresnel integrals are entire functions
+    """
     return mp.fresnels(x), mp.fresnelc(x)
 
 
@@ -511,7 +588,12 @@ def gamma(x: complex) -> complex: ...
 
 @reference_implementation
 def gamma(x):
-    """Gamma function."""
+    """Gamma function.
+
+    Notes
+    -----
+    Poles at nonpositive integers
+    """
     if x == 0.0:
         if isinstance(x, float):
             return math.copysign(mp.inf, x)
@@ -571,10 +653,15 @@ def hankel1(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def hankel1(v, z):
-    """Hankel function of the first kind."""
+    """Hankel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hankel1(v, z)
 
 
@@ -586,10 +673,15 @@ def hankel1e(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def hankel1e(v, z):
-    """Exponentially scaled Hankel function of the first kind."""
+    """Exponentially scaled Hankel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hankel1(v, w) * mp.exp(z * -1j)
 
 
@@ -601,10 +693,15 @@ def hankel2(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def hankel2(v, z):
-    """Hankel function of the second kind."""
+    """Hankel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hankel2(v, z)
 
 
@@ -616,16 +713,27 @@ def hankel2e(v: float, z: complex) -> complex: ...
 
 @reference_implementation
 def hankel2e(v, z):
-    """Exponentially scaled Hankel function of the second kind."""
+    """Exponentially scaled Hankel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hankel2(v, w) * mp.exp(z * 1j)
 
 
 @reference_implementation
 def hyp1f1(a: float, b: float, z: complex) -> complex:
-    """Confluent hypergeometric function 1F1."""
+    """Confluent hypergeometric function 1F1.
+
+    Notes
+    -----
+    Entire in a and z
+    Meromorphic in b with poles at nonpositive integers
+    """
     return mp.hyp1f1(a, b, z)
 
 
@@ -637,16 +745,29 @@ def hyp2f1(a: float, b: float, c: float, z: complex) -> complex: ...
 
 @reference_implementation
 def hyp2f1(a, b, c, z):
-    """Gauss hypergeometric function 2F1(a, b; c; z)."""
+    """Gauss hypergeometric function 2F1(a, b; c; z).
+
+    Notes
+    -----
+    Branch point at ``z=1`` with branch cut along ``(1, inf)``.
+    """
     if z.imag == 0 and z.real > 1:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hyp2f1(a, b, c, z)
 
 
 @reference_implementation
 def hyperu(a: float, b: float, z: float) -> float:
-    """Confluent hypergeometric function U."""
+    """Confluent hypergeometric function U.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hyperu(a, b, z)
 
 
@@ -664,7 +785,18 @@ def ker(x: float) -> float:
 
 @reference_implementation
 def lambertw(z: complex, k: int) -> complex:
-    """Lambert W function."""
+    """Lambert W function.
+
+    Notes
+    -----
+    Branch cut on (-inf, 0). k = 0 corresponds to the principle
+    branch. There are infinitely many branches.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero.
+        # mpmath's lambertw currently converts z to a complex128 internally,
+        # so the small step here can't be smaller than the smallest subnormal.
+        z += mp.mpc(0, 5e-324) * math.copysign(z.imag)
     return mp.lambertw(z, k=k)
 
 
@@ -701,7 +833,16 @@ def loggamma(z: complex) -> complex: ...
 
 @reference_implementation
 def loggamma(z):
-    """Principal branch of the logarithm of the gamma function."""
+    """Principal branch of the logarithm of the gamma function.
+
+    Notes
+    -----
+    Logarithmic singularity at z = 0
+    Branch cut on (-inf, 0).
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero.
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
     return mp.loggamma(z)
 
 
@@ -786,7 +927,12 @@ def riemann_zeta(z: complex) -> complex: ...
 
 @reference_implementation
 def riemann_zeta(z):
-    """Riemann zeta function."""
+    """Riemann zeta function.
+
+    Notes
+    -----
+    A single pole at z = 1
+    """
     if z == 1.0:
         return mp.nan
     return mp.zeta(z)
@@ -806,7 +952,13 @@ def shichi(x: complex) -> Tuple[complex, complex]: ...
 
 @reference_implementation
 def shichi(x):
-    """Hyperbolic sine and cosine integrals."""
+    """Hyperbolic sine and cosine integrals.
+
+    Notes
+    -----
+    Hyperbolic sine and cosine integrals are entire functions
+
+    """
     return mp.shi(x), mp.chi(x)
 
 
@@ -818,7 +970,12 @@ def sici(x: complex) -> Tuple[complex, complex]: ...
 
 @reference_implementation
 def sici(x):
-    """Sine and cosine integrals."""
+    """Sine and cosine integrals.
+
+    Notes
+    -----
+    Sine and cosine integrals are entire functions
+    """
     return mp.si(x), mp.ci(x)
 
 
@@ -830,7 +987,12 @@ def sinpi(x: complex) -> complex: ...
 
 @reference_implementation
 def sinpi(x):
-    """Sine of pi*x."""
+    """Sine of pi*x.
+
+    Note
+    ----
+    sinpi is an entire function
+    """
     return mp.sinpi(x)
 
 
