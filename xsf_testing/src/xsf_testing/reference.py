@@ -100,6 +100,22 @@ def betaincc(a: float, b: float, x: float) -> float:
 
 
 @reference_implementation
+def betaincinv(a: float, b: float, y: float) -> float:
+    def f(x):
+        return mp.betainc(a, b, 0, x, regularized=True) - y
+
+    return mp.findroot(f, [0, 1], solver="bisect")
+
+
+@reference_implementation
+def betainccinv(a: float, b: float, y: float) -> float:
+    def f(x):
+        return mp.betainc(a, b, x, 1.0, regularized=True) - y
+
+    return mp.findroot(f, [0, 1], solver="bisect")
+
+
+@reference_implementation
 def bdtr(k: float, n: float, p: float) -> float:
     """Binomial distribution cumulative distribution function."""
     k, n = mp.floor(k), mp.floor(n)
