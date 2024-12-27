@@ -1,12 +1,15 @@
 import atexit
 import csv
 import functools
+import inspect
 import math
 import numpy as np
+import os
 import typing
 import re
 
 from mpmath import mp  # type: ignore
+from threading import Lock
 from typing import overload
 
 
@@ -178,17 +181,35 @@ class TracedUfunc:
         atexit.register(self.dump)
 
     def __call__(self, *args, **kwargs):
-        self.__trace.append({"args": args, "kwargs": kwargs})
+        trace_data = {"args": args, "kwargs": kwargs}
+        trace_data.update(self._get_file_metadata())
+        self.__trace.append(trace_data)
         return self.__ufunc(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self.__ufunc, name)
 
     @property
     def trace(self):
         output = []
         for entry in self.__trace:
-            args = np.broadcast_arrays(*entry["args"])
+            try:
+                args = np.broadcast_arrays(*entry["args"])
+            except ValueError:
+                # There is a test that inputs will not broadcast which
+                # is asserted to raise a ValueError. Just skip that case.
+                # It's not relevant when directly testing scalar kernels.
+                continue
             args = [val.flatten() for val in args]
-            output.extend([row for row in zip(*args)])
+            test_file, test_name = entry["test_file"], entry["test_name"]
+            output.extend([row + (test_file, test_name) for row in zip(*args)])
         return output
+
+    def _get_file_metadata(self):
+        frame = inspect.currentframe().f_back.f_back
+        test_file = os.path.basename(frame.f_globals.get('__file__', '???????'))
+        test_name = frame.f_code.co_name
+        return {"test_file": test_file, "test_name": test_name}
 
     @property
     def _outpath(self):
@@ -198,4 +219,4 @@ class TracedUfunc:
         if self.__outpath is not None:
             with self.__lock:
                 with open(self.__outpath, 'a', newline='') as csvfile:
-                    csv.writer(csvfile).writerows(self.trace)
+                    csv.writer(csvfile, lineterminator='\n').writerows(self.trace)
