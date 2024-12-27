@@ -188,6 +188,9 @@ def cyl_bessel_i(v: float, z:complex) -> complex: ...
 
 def cyl_bessel_i(v, z):
     """Modified Bessel function of the first kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.besseli(v, z)
 
 
@@ -200,7 +203,10 @@ def cyl_bessel_ie(v: float, z:complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_ie(v, x):
     """Exponentially scaled modified Bessel function of the first kind."""
-    return mp.exp(-abs(z.real)) * mp.besseli(v, z)
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.exp(-abs(z.real)) * mp.besseli(v, w)
 
 
 @reference_implementation
@@ -224,6 +230,9 @@ def cyl_bessel_j(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_j(v, z):
     """Bessel function of the first kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.besselj(v, z)
 
 
@@ -236,7 +245,10 @@ def cyl_bessel_je(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_je(v, z):
     """Exponentially scaled Bessel function of the first kind."""
-    return mp.exp(-abs(z.imag)) * mp.besselj(v, z)
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.exp(-abs(z.imag)) * mp.besselj(v, w)
 
 
 @reference_implementation
@@ -272,6 +284,9 @@ def cyl_bessel_k(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_k(v, z):
     """Modified Bessel function of the second kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.besselk(v, z)
 
 
@@ -284,7 +299,10 @@ def cyl_bessel_ke(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_ke(v, z):
     """Exponentially scaled modified Bessel function of the second kind."""
-    return mp.exp(z) * mp.besselk(v, z)
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.exp(z) * mp.besselk(v, w)
 
 
 @reference_implementation
@@ -308,6 +326,9 @@ def cyl_bessel_y(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_y(v, z):
     """Bessel function of the second kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.bessely(v, z)
 
 
@@ -320,7 +341,10 @@ def cyl_bessel_ye(v: float, z: complex) -> complex: ...
 @reference_implementation
 def cyl_bessel_ye(v, z):
     """Exponentially scaled Bessel function of the second kind."""
-    return mp.bessely(v, z) * mp.exp(-abs(z.imag))
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.bessely(w, z) * mp.exp(-abs(z.imag))
 
 
 @overload
@@ -548,6 +572,9 @@ def hankel1(v: float, z: complex) -> complex: ...
 @reference_implementation
 def hankel1(v, z):
     """Hankel function of the first kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.hankel1(v, z)
 
 
@@ -560,7 +587,10 @@ def hankel1e(v: float, z: complex) -> complex: ...
 @reference_implementation
 def hankel1e(v, z):
     """Exponentially scaled Hankel function of the first kind."""
-    return mp.hankel1(v, z) * mp.exp(z * -1j)
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.hankel1(v, w) * mp.exp(z * -1j)
 
 
 @overload
@@ -572,6 +602,9 @@ def hankel2(v: float, z: complex) -> complex: ...
 @reference_implementation
 def hankel2(v, z):
     """Hankel function of the second kind."""
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
     return mp.hankel2(v, z)
 
 
@@ -584,7 +617,10 @@ def hankel2e(v: float, z: complex) -> complex: ...
 @reference_implementation
 def hankel2e(v, z):
     """Exponentially scaled Hankel function of the second kind."""
-    return mp.hankel2(v, z) * mp.exp(z * 1j)
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000") * math.copysign(z.imag)
+    return mp.hankel2(v, w) * mp.exp(z * 1j)
 
 
 @reference_implementation
