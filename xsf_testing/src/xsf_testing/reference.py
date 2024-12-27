@@ -399,6 +399,24 @@ def cyl_bessel_ye(v, z):
 
 
 @overload
+def dawsn(x: float) -> float: ...
+@overload
+def dawsn(x: complex) -> complex: ...
+
+
+@reference_implementation
+def dawsn(x):
+    """Dawson's integral
+
+    dawsn is an entire function
+    """
+    def integrand(t):
+        return mp.exp(t**2)
+
+    return mp.exp(-x**2) * mp.quad(integrand, [0, x])
+
+
+@overload
 def digamma(x: float) -> float: ...
 @overload
 def digamma(x: complex) -> complex: ...
@@ -1121,6 +1139,31 @@ def struve_l(v: float, x: float) -> float:
 def tandg(x: float) -> float:
     """Tangent of angle x given in degrees."""
     return mp.tan(mp.radians(x))
+
+
+@reference_implementation
+def voigt_profile(x: float, sigma: float, gamma: float) -> float:
+    """Voigt profile"""
+    z = (x + mp.j *gamma) / (mp.sqrt(2) * sigma)
+    w = mp.exp(-z**2) * mp.erfc(-mp.j * z)
+    return w.real / (sigma * mp.sqrt(2*mp.pi))
+
+
+@overload
+def wofz(x: float) -> float: ...
+@overload
+def wofz(x: complex) -> complex: ...
+
+
+@reference_implementation
+def wofz(x):
+    """Faddeeva function
+
+    Notes
+    -----
+    wofz is an entire function
+    """
+    return mp.exp(-x**2) * mp.erfc(-mp.j * x)
 
 
 @reference_implementation
