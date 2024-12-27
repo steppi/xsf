@@ -330,7 +330,7 @@ def cyl_bessel_k(v, z):
 def cyl_bessel_ke(v: float, z: float) -> float: ...
 @overload
 def cyl_bessel_ke(v: float, z: complex) -> complex: ...
-    
+
 
 @reference_implementation
 def cyl_bessel_ke(v, z):
@@ -455,16 +455,68 @@ def ellipj(u: float, m: float) -> Tuple[float, float, float, float]:
     return sn, cn, dn, phi
 
 
+@overload
+def erf(x: float) -> float: ...
+@overload
+def erf(x: complex) -> complex: ...
+
+
 @reference_implementation
-def erf(x: float) -> float:
-    """Error function."""
+def erf(x):
+    """Error function.
+
+    erf is an entire function
+    """
     return mp.erf(x)
 
 
+@overload
+def erfi(x: float) -> float: ...
+@overload
+def erfi(x: complex) -> complex: ...
+
+
 @reference_implementation
-def erfc(x: float) -> float:
-    """Complementary error function 1 - erf(x)."""
+def erfi(x):
+    """Imaginary error function.
+
+    erfi is an entire function
+    """
+    return -mp.j * mp.erf(mp.j * x)
+
+
+@overload
+def erfc(x: float) -> float: ...
+@overload
+def erfc(x: complex) -> complex: ...
+
+
+@reference_implementation
+def erfc(x):
+    """Complementary error function 1 - erf(x).
+
+    Notes
+    -----
+    erfc is an entire function
+    """
     return mp.erfc(x)
+
+
+@overload
+def erfcx(x: float) -> float: ...
+@overload
+def erfc(x: complex) -> complex: ...
+
+
+@reference_implementation
+def erfcx(x):
+    """Scaled complementary error function exp(x**2) * erfc(x)
+
+    Notes
+    -----
+    erfcx is an entire function
+    """
+    return mp.exp(x**2) * mp.erfc(x)
 
 
 @reference_implementation
@@ -493,14 +545,26 @@ def exp1(x):
     return mp.e1(x)
 
 
+@overload
+def exp10(x: float) -> float: ...
+@overload
+def exp10(x: complex) -> complex: ...
+
+
 @reference_implementation
-def exp10(x: float) -> float:
+def exp10(x):
     """Compute 10**x."""
     return mp.mpf(10) ** x
 
 
+@overload
+def exp2(x: float) -> float: ...
+@overload
+def exp2(x: complex) -> complex: ...
+
+
 @reference_implementation
-def exp2(x: float) -> float:
+def exp2(x):
     """Compute 2**x."""
     return mp.mpf(2) ** x
 
@@ -531,9 +595,20 @@ def expit(x: float) -> float:
     return mp.sigmoid(x)
 
 
+@overload
+def expm1(x: float) -> float: ...
+@overload
+def expm1(x: complex) -> complex: ...
+
+
 @reference_implementation
-def expm1(x: float) -> float:
-    """exp(x) - 1."""
+def expm1(x):
+    """exp(x) - 1.
+
+    Notes
+    -----
+    expm1 is an entire function
+    """
     return mp.expm1(x)
 
 
@@ -813,15 +888,43 @@ def lgam1p(x: float) -> float:
     return mp.log(mp.gamma(x + 1))
 
 
+@overload
+def log1p(z: float) -> float: ...
+@overload
+def log1p(z: complex) -> complex: ...
+
+
 @reference_implementation
-def log1p(x: float) -> float:
-    """Logarithm of x + 1."""
+def log1p(x):
+    """Logarithm of x + 1.
+
+    Notes
+    -----
+    Branch cut on (-inf, -1)
+    """
+    if z.imag == 0 and z.real < -1:
+        # On branch cut, choose branch based on sign of zero.
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
     return mp.log1p(x)
 
 
+@overload
+def log1pmx(z: float) -> float: ...
+@overload
+def log1pmx(z: complex) -> complex: ...
+
+
 @reference_implementation
-def log1pmx(x: float) -> float:
-    """log(x + 1) - x."""
+def log1pmx(x):
+    """log(x + 1) - x.
+
+    Notes
+    -----
+    Branch cut on (-inf, -1)
+    """
+    if z.imag == 0 and z.real < -1:
+        # On branch cut, choose branch based on sign of zero.
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
     return mp.log1p(x) - x
 
 
@@ -1024,6 +1127,52 @@ def tandg(x: float) -> float:
 def wright_bessel(a: float, b: float, x: float) -> float:
     """Wright's generalized Bessel function."""
     return _wright_bessel(a, b, x)
+
+
+@overload
+def xlogy(x: float, y: float) -> float: ...
+@overload
+def xlogy(x: complex, y: float) -> complex: ...
+
+
+@reference_implementation
+def xlogy(x, y):
+    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``.
+
+    Notes
+    -----
+    Branch cut on (-inf, 0)
+
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero.
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+    if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
+        return 0
+    return x * mp.log(y)
+
+
+@overload
+def xlog1py(x: float, y: float) -> float: ...
+@overload
+def xlog1py(x: complex, y: float) -> complex: ...
+
+
+@reference_implementation
+def xlogy(x, y):
+    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``.
+
+    Notes
+    -----
+    Branch cut on (-inf, 0)
+
+    """
+    if z.imag == 0 and z.real < -1:
+        # On branch cut, choose branch based on sign of zero.
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+    if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
+        return 0
+    return x * mp.log1p(y)
 
 
 @reference_implementation
