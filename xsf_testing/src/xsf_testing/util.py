@@ -6,14 +6,13 @@ import math
 import numpy as np
 import os
 import typing
-import re
 
 from mpmath import mp  # type: ignore
 from threading import Lock
 from typing import overload
 
 
-__all__ = ["get_signatures", "reference_implementation"]
+__all__ = ["get_signatures", "reference_implementation", "TracedUfunc"]
 
 
 def signature_from_type_hints(type_hints):
@@ -140,38 +139,6 @@ def reference_implementation(func):
     return wrapper
 
 
-def _parse_exceptional_cases(docstring):
-    pattern = r"Exceptional Cases\s*-+\n([\s\S]+?)(?=\n\n|$)"
-    match_ = re.search(pattern, docstring)
-    if not match_:
-        return []
-    exceptional_cases = match_.group(1).strip()
-
-    current_type = None
-    cases = {"real": [], "complex": []}
-    for i, line in enumerate(exceptional_cases.split("\n")):
-        line = line.strip()
-        if line == "real:":
-            current_type = "real"
-            continue
-        if line == "complex:":
-            current_type = "complex"
-            continue
-        if current_type is None:
-            raise ValueError(f"Line {i+1} invalid, \"{line}\"")
-        try:
-            input_, output = line.split(": ")
-        except ValueError as e:
-            raise ValueError(f"Line {i+1} invalid, \"{line}\"") from e
-        if frozenset([input_[0], input_[-1], output[0], output[-1]]) != frozenset(["`"]):
-            raise ValueError(f"Line {i+1} invalid, {line}")
-        input_, output = input_[1:-1], output[1:-1]
-        if "`" in input_ or "`" in output:
-            raise ValueError(f"Line {i+1} invalid, \"{line}\"")
-        cases[current_type].append((input_, output))
-    return cases
-
-
 class TracedUfunc:
     def __init__(self, ufunc, /, *, outpath=None):
         self.__ufunc = ufunc
@@ -207,7 +174,7 @@ class TracedUfunc:
 
     def _get_file_metadata(self):
         frame = inspect.currentframe().f_back.f_back
-        test_file = os.path.basename(frame.f_globals.get('__file__', '???????'))
+        test_file = os.path.basename(frame.f_globals.get("__file__", "???????"))
         test_name = frame.f_code.co_name
         return {"test_file": test_file, "test_name": test_name}
 
