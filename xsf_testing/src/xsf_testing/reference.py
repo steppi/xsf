@@ -901,7 +901,7 @@ def lambertw(z: complex, k: int) -> complex:
     Branch cut on (-inf, 0). k = 0 corresponds to the principle
     branch. There are infinitely many branches.
     """
-    if z.imag == 0 and z.real < 0:
+    if z.imag == 0 and (z.real < 0 and k !=0 or z.real < -1/mp.e):
         # On branch cut, choose branch based on sign of zero.
         # mpmath's lambertw currently converts z to a complex128 internally,
         # so the small step here can't be smaller than the smallest subnormal.
