@@ -110,38 +110,40 @@ def get_signatures(func):
     return signatures
 
 
-def reference_implementation(func):
-    overloads = typing.get_overloads(func)
-    annotations_code = ""
-    for overload_def in overloads:
-        type_hints = overload_def.__annotations__
-        return_type = type_hints['return']
-        return_type = (
-            return_type.__name__ if return_type in [float, complex]
-            else return_type
-        )
-        input_types = (
-            (key, val.__name__) for key, val in type_hints.items()
-            if key != 'return'
-        )
-        annotations_code += (
-            "@overload\n"
-            "def wrapper("
-            f"{','.join((f'{arg}: {type_}' for arg, type_ in input_types))})"
-            f" -> {return_type}: ...\n"
-        )
-    exec(annotations_code)
-    @functools.wraps(func)
-    def wrapper(*args):
-        args, output_types = process_args(func, *args)
-        result = func(*args)
-        if not isinstance(result, tuple):
-            result = (result, )
-        return process_output(result, output_types)
-
-    wrapper.__annotations__ =  typing.get_type_hints(func)
-    setattr(wrapper, f"mp_{func.__name__}", func)
-    return wrapper
+def reference_implementation(*, dps):
+    def _reference_implementation(func):
+        overloads = typing.get_overloads(func)
+        annotations_code = ""
+        for overload_def in overloads:
+            type_hints = overload_def.__annotations__
+            return_type = type_hints['return']
+            return_type = (
+                return_type.__name__ if return_type in [float, complex]
+                else return_type
+            )
+            input_types = (
+                (key, val.__name__) for key, val in type_hints.items()
+                if key != 'return'
+            )
+            annotations_code += (
+                "@overload\n"
+                "def wrapper("
+                f"{','.join((f'{arg}: {type_}' for arg, type_ in input_types))})"
+                f" -> {return_type}: ...\n"
+            )
+        exec(annotations_code)
+        @functools.wraps(func)
+        def wrapper(*args):
+            with mp.workdps(dps):
+                args, output_types = process_args(func, *args)
+                result = func(*args)
+                if not isinstance(result, tuple):
+                    result = (result, )
+                return process_output(result, output_types)
+        wrapper.__annotations__ =  typing.get_type_hints(func)
+        setattr(wrapper, f"mp_{func.__name__}", func)
+        return wrapper
+    return _reference_implementation
 
 
 class TracedUfunc:
