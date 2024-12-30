@@ -738,20 +738,32 @@ def _gammainccinv_initial_bracket(a, y):
             math.nextafter(float(initial_guess), -math.inf),
             math.nextafter(float(initial_guess), math.inf),
         )
+    # For a > 1 use the inequalities in DLMF 8.10.3 and invert the left and
+    # right hand sides to get an initial bracket.
+    # https://dlmf.nist.gov/8.10#E3
     z = -(u)**(1/(a-1))/(a - 1)
     if a > 1:
         h = ((a - 1) / mp.e)**(a - 1) / g
         if y > h:
+            # Not invertible if y > h, but can use y == h to get an
+            # upper bound.
             return (0, _gammainccinv_initial_bracket(a, h)[1])
         initial_guess = -(a - 1) * mp.lambertw(z, k=-1).real
 
+        # Other side of inequality doesn't have a closed form. Use
+        # secant method to invert it.
         def f(x): return x**(a-1)*mp.exp(-x)/g + (a - 1)/x - y
 
-        guess2 = solve_secant(f, initial_guess, 1.01*initial_guess)
+        try:
+            guess2 = solve_secant(f, initial_guess, 1.01*initial_guess)
+        except RuntimeError:
+            # If the secant method failed, be conservative and pick right
+            # endpoint larger than the largest double.
+            guess2 = mp.mpf("2e308")
 
         return (initial_guess, guess2)
+    # If a < 1, we can only get a reliable upper bound.
     initial_guess = -(a - 1) * mp.lambertw(z, k=0).real
-
     return (0, initial_guess)
 
 
@@ -770,6 +782,11 @@ def gammainccinv(a: float, y: float) -> float:
         return mp.gammainc(a, x, mp.inf, regularized=True) - y
 
     xl, xr = _gammainccinv_initial_bracket(a, y)
+    if xl >= xr or mp.sign(f(xl)) == mp.sign(f(xr)):
+        # This should not happen, but is here so code reviewers won't need to
+        # verify that _gammainccinv_initial_bracket will always return a
+        # valid bracket.
+        xl, xr = mp.zero, mp.mpf("2e308")
     return solve_bisect(f, xl, xr)
 
 
@@ -1267,7 +1284,7 @@ def xlog1py(x: complex, y: float) -> complex: ...
 
 
 @reference_implementation()
-def xlogy(x, y):
+def xlog1py(x, y):
     """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``.
 
     Notes
@@ -1309,7 +1326,6 @@ def _wright_bessel(a, b, x):
 
 
 def solve_bisect(f, xl, xr):
-    x_prev = mp.inf
     if not xl < xr:
         xl, xr = xr, xl
     fl, fr = f(xl), f(xr)
@@ -1353,6 +1369,7 @@ def solve_bisect(f, xl, xr):
                 xr = t
 
     iterations = Bisection(mp, f, [xl, xr])
+    x_prev = mp.inf
     for x, error in iterations:
         if abs(x - x_prev) < abs(x)*1e-17:
             break
