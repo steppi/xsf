@@ -768,13 +768,38 @@ def _gammainccinv_initial_bracket(a, y):
 
 
 @reference_implementation()
-def gammainccinv(a: float, y: float) -> float:
-    """Inverse to the regularized upper incomplete gamma function."""
+def gammaincinv(a: float, y: float) -> float:
+    """Inverse to the regularized lower incomplete gamma function."""
     # special cases
     if y == 0:
         return 1.0
     if y == 1:
         return math.inf
+    if y > 1 or y < 0:
+        return math.nan
+
+    def f(x):
+        return mp.gammainc(a, 0, x, regularized=True) - y
+
+    with mp.workdps(int(mp.ceil(-mp.log10(y)))):
+        # set the dps high enough that mp.one - y != 1
+        xl, xr = _gammainccinv_initial_bracket(a, mp.one - y)
+    if xl >= xr or mp.sign(f(xl)) == mp.sign(f(xr)):
+        # This should not happen, but is here so code reviewers won't need to
+        # verify that _gammainccinv_initial_bracket will always return a
+        # valid bracket.
+        xl, xr = mp.zero, mp.mpf("2e308")
+    return solve_bisect(f, xl, xr)
+
+
+@reference_implementation()
+def gammainccinv(a: float, y: float) -> float:
+    """Inverse to the regularized upper incomplete gamma function."""
+    # special cases
+    if y == 0:
+        return math.inf
+    if y == 1:
+        return 0.0
     if y > 1 or y < 0:
         return math.nan
 
