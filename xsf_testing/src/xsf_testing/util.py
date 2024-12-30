@@ -110,7 +110,7 @@ def get_signatures(func):
     return signatures
 
 
-def reference_implementation(*, dps):
+def reference_implementation(*, dps=100):
     def _reference_implementation(func):
         overloads = typing.get_overloads(func)
         annotations_code = ""
