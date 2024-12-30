@@ -108,7 +108,7 @@ def betaincinv(a: float, b: float, y: float) -> float:
     def f(x):
         return mp.betainc(a, b, 0, x, regularized=True) - y
 
-    return mp.findroot(f, [0, 1], solver="bisect")
+    return solve_bisect(f, 0, 1)
 
 
 @reference_implementation()
@@ -117,7 +117,7 @@ def betainccinv(a: float, b: float, y: float) -> float:
     def f(x):
         return mp.betainc(a, b, x, 1.0, regularized=True) - y
 
-    return mp.findroot(f, [0, 1], solver="bisect")
+    return solve_bisect(f, 0, 1)
 
 
 @reference_implementation()
