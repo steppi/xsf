@@ -110,7 +110,11 @@ def get_signatures(func):
     return signatures
 
 
-def reference_implementation(*, dps=100):
+def reference_implementation(*, dps=100, uses_mp=True):
+    if not uses_mp:
+        # The reference implementation does not use arbitrary precision.
+        return lambda func: func
+
     def _reference_implementation(func):
         overloads = typing.get_overloads(func)
         annotations_code = ""

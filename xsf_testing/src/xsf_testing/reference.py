@@ -1,12 +1,22 @@
 import math
 import numpy as np
+import scipy
+import scipy.special as special
 import sys
 
 from mpmath import mp  # type: ignore
 from mpmath.calculus.optimization import Bisection, Secant
+from packaging import version
 from typing import overload, Tuple
 
 from xsf_testing.util import reference_implementation
+
+
+if version.parse(scipy.__version__) >= version.parse("1.16"):
+    raise RuntimeError(
+        f"SciPy {scipy.__version__} is not an independent reference. SciPy"
+        " depends on xsf as of version 1.16."
+        )
 
 
 @overload
@@ -58,15 +68,54 @@ def airye(z):
 
 
 @reference_implementation()
+def bdtr(k: float, n: float, p: float) -> float:
+    """Binomial distribution cumulative distribution function."""
+    k, n = mp.floor(k), mp.floor(n)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))) + 53)):
+        # set the precision high enough that mp.one - p != 1
+        result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
+    return result
+
+
+@reference_implementation()
+def bdtrc(k: float, n: float, p: float) -> float:
+    """Binomial distribution survival function."""
+    k, n = mp.floor(k), mp.floor(n)
+    return mp.betainc(k + 1, n - k, 0, p, regularized=True)
+
+
+@reference_implementation()
+def bdtri(k: float, n: float, y: float) -> float:
+    """Inverse function to `bdtr` with respect to `p`."""
+    k, n = mp.floor(k), mp.floor(n)
+    def f(p):
+        return bdtr.mp_bdtr(k, n, p) - y
+
+    return solve_bisect(f, 0, 1)
+
+
+@reference_implementation()
 def bei(x: float) -> float:
     """Kelvin function bei."""
     return mp.bei(0, x)
 
 
 @reference_implementation()
+def beip(x: float) -> float:
+    """Derivative of the Kelvin function bei."""
+    return mp.diff(bei.mp_bei, x, n=1)
+
+
+@reference_implementation()
 def ber(x: float) -> float:
     """Kelvin function ber."""
     return mp.ber(0, x)
+
+
+@reference_implementation()
+def berp(x: float) -> float:
+    """Derivative of the Kelvin function ber."""
+    return mp.diff(bei.mp_ber, x, n=1)
 
 
 @reference_implementation()
@@ -121,23 +170,6 @@ def betainccinv(a: float, b: float, y: float) -> float:
 
 
 @reference_implementation()
-def bdtr(k: float, n: float, p: float) -> float:
-    """Binomial distribution cumulative distribution function."""
-    k, n = mp.floor(k), mp.floor(n)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))) + 53)):
-        # set the precision high enough that mp.one - p != 1
-        result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
-    return result
-
-
-@reference_implementation()
-def bdtrc(k: float, n: float, p: float) -> float:
-    """Binomial distribution survival function."""
-    k, n = mp.floor(k), mp.floor(n)
-    return mp.betainc(k + 1, n - k, 0, p, regularized=True)
-
-
-@reference_implementation()
 def binom(n: float, k: float) -> float:
     """Binomial coefficient considered as a function of two real variables."""
     return mp.binomial(n, k)
@@ -149,6 +181,18 @@ def cbrt(x: float) -> float:
     return mp.cbrt(x)
 
 
+@reference_implementation(uses_mp=False)
+def cem(m: float, q, float, x: float) -> Tuple[float, float]:
+    """Even Mathieu function and its derivative."""
+    return special.mathieu_cem(m, q, x)
+
+
+@reference_implementation(uses_mp=False)
+def cem_cva(m: float, q: float) -> float:
+    """Characteristic value of even Mathieu functions."""
+    return special.mathieu_a(m, q)
+
+
 @reference_implementation()
 def chdtr(v: float, x: float) -> float:
     """Chi square cumulative distribution function."""
@@ -158,6 +202,13 @@ def chdtr(v: float, x: float) -> float:
 def chdtrc(v: float, x: float) -> float:
     """Chi square survival function."""
     return mp.gammainc(v / 2, x / 2, mp.inf, regularized=True)
+
+
+@reference_implementation()
+def chdtri(v: float, p: float) -> float:
+    """Inverse to `chdtrc` with respect to `x`."""
+    # TODO. Figure out why chdtri inverts chdtrc and not chdtr
+    return 2 * gammainccinv.mp_gammainccinv(v / 2, p)
 
 
 @reference_implementation()
@@ -196,6 +247,26 @@ def cotdg(x: float) -> float:
     return mp.cot(mp.radians(x))
 
 
+@overload
+def cyl_bessel_i(v: float, z: float) -> float: ...
+@overload
+def cyl_bessel_i(v: float, z:complex) -> complex: ...
+
+
+def cyl_bessel_i(v, z):
+    """Modified Bessel function of the first kind.
+
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.besseli(v, z)
+
+
 @reference_implementation()
 def cyl_bessel_i0(z: float) -> float:
     """Modified Bessel function of order 0."""
@@ -221,26 +292,6 @@ def cyl_bessel_i1e(z: float) -> float:
 
 
 @overload
-def cyl_bessel_i(v: float, z: float) -> float: ...
-@overload
-def cyl_bessel_i(v: float, z:complex) -> complex: ...
-
-
-def cyl_bessel_i(v, z):
-    """Modified Bessel function of the first kind.
-
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.besseli(v, z)
-
-
-@overload
 def cyl_bessel_ie(v: float, z: float) -> float: ...
 @overload
 def cyl_bessel_ie(v: float, z:complex) -> complex: ...
@@ -258,18 +309,6 @@ def cyl_bessel_ie(v, x):
         # On branch cut, choose branch based on sign of zero
         w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(-abs(z.real)) * mp.besseli(v, w)
-
-
-@reference_implementation()
-def cyl_bessel_j0(x: float) -> float:
-    """Bessel function of the first kind of order 0."""
-    return mp.j0(x)
-
-
-@reference_implementation()
-def cyl_bessel_j1(x: float) -> float:
-    """Bessel function of the first kind of order 1."""
-    return mp.j1(x)
 
 
 @overload
@@ -292,6 +331,18 @@ def cyl_bessel_j(v, z):
     return mp.besselj(v, z)
 
 
+@reference_implementation()
+def cyl_bessel_j0(x: float) -> float:
+    """Bessel function of the first kind of order 0."""
+    return mp.j0(x)
+
+
+@reference_implementation()
+def cyl_bessel_j1(x: float) -> float:
+    """Bessel function of the first kind of order 1."""
+    return mp.j1(x)
+
+
 @overload
 def cyl_bessel_je(v: float, z: float) -> float: ...
 @overload
@@ -310,6 +361,26 @@ def cyl_bessel_je(v, z):
         # On branch cut, choose branch based on sign of zero
         w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(-abs(z.imag)) * mp.besselj(v, w)
+
+
+@overload
+def cyl_bessel_k(v: float, z: float) -> float: ...
+@overload
+def cyl_bessel_k(v: float, z: complex) -> complex: ...
+
+
+@reference_implementation()
+def cyl_bessel_k(v, z):
+    """Modified Bessel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.besselk(v, z)
 
 
 @reference_implementation()
@@ -337,26 +408,6 @@ def cyl_bessel_k1e(x: float) -> float:
 
 
 @overload
-def cyl_bessel_k(v: float, z: float) -> float: ...
-@overload
-def cyl_bessel_k(v: float, z: complex) -> complex: ...
-
-
-@reference_implementation()
-def cyl_bessel_k(v, z):
-    """Modified Bessel function of the second kind.
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.besselk(v, z)
-
-
-@overload
 def cyl_bessel_ke(v: float, z: float) -> float: ...
 @overload
 def cyl_bessel_ke(v: float, z: complex) -> complex: ...
@@ -374,18 +425,6 @@ def cyl_bessel_ke(v, z):
         # On branch cut, choose branch based on sign of zero
         w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.exp(z) * mp.besselk(v, w)
-
-
-@reference_implementation()
-def cyl_bessel_y0(z: float) -> float:
-    """Bessel function of the second kind of order 0."""
-    return mp.bessely(0, z)
-
-
-@reference_implementation()
-def cyl_bessel_y1(z: float) -> float:
-    """Bessel function of the second kind of order 1."""
-    return mp.bessely(1, z)
 
 
 @overload
@@ -408,6 +447,18 @@ def cyl_bessel_y(v, z):
     return mp.bessely(v, z)
 
 
+@reference_implementation()
+def cyl_bessel_y0(z: float) -> float:
+    """Bessel function of the second kind of order 0."""
+    return mp.bessely(0, z)
+
+
+@reference_implementation()
+def cyl_bessel_y1(z: float) -> float:
+    """Bessel function of the second kind of order 1."""
+    return mp.bessely(1, z)
+
+
 @overload
 def cyl_bessel_ye(v: float, z: float) -> float: ...
 @overload
@@ -426,6 +477,86 @@ def cyl_bessel_ye(v, z):
         # On branch cut, choose branch based on sign of zero
         w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.bessely(w, z) * mp.exp(-abs(z.imag))
+
+
+@overload
+def cyl_hankel_1(v: float, z: float) -> float: ...
+@overload
+def cyl_hankel_1(v: float, z: complex) -> complex: ...
+
+
+@reference_implementation()
+def cyl_hankel_1(v, z):
+    """Hankel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.hankel1(v, z)
+
+
+@overload
+def cyl_hankel_1e(v: float, z: float) -> float: ...
+@overload
+def cyl_hankel_1e(v: float, z: complex) -> complex: ...
+
+
+@reference_implementation()
+def cyl_hankel_1e(v, z):
+    """Exponentially scaled Hankel function of the first kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.hankel1(v, w) * mp.exp(z * -1j)
+
+
+@overload
+def cyl_hankel_2(v: float, z: float) -> float: ...
+@overload
+def cyl_hankel_2(v: float, z: complex) -> complex: ...
+
+
+@reference_implementation()
+def cyl_hankel_2(v, z):
+    """Hankel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.hankel2(v, z)
+
+
+@overload
+def cyl_hankel_2e(v: float, z: float) -> float: ...
+@overload
+def cyl_hankel_2e(v: float, z: complex) -> complex: ...
+
+
+@reference_implementation()
+def cyl_hankel_2e(v, z):
+    """Exponentially scaled Hankel function of the second kind.
+
+    Notes
+    -----
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    """
+    if z.imag == 0 and z.real < 0:
+        # On branch cut, choose branch based on sign of zero
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+    return mp.hankel2(v, w) * mp.exp(z * 1j)
 
 
 @overload
@@ -476,18 +607,19 @@ def ellipeinc(phi: float, m: float) -> float:
 
 
 @reference_implementation()
-def ellipk(m: float) -> float:
-    """Complete elliptic integral of the first kind."""
-    return mp.ellipk(m)
+def ellipj(u: float, m: float) -> Tuple[float, float, float, float]:
+    """Jacobian Elliptic functions."""
+    sn = mp.ellipfun("sn", u=u, m=m)
+    cn = mp.ellipfun("cn", u=u, m=m)
+    dn = mp.ellipfun("dn", u=u, m=m)
+    phi = mp.asin(sn)
+    return sn, cn, dn, phi
 
 
 @reference_implementation()
-def ellipkm1(p: float) -> float:
-    """Complete elliptic integral of the first kind around m = 1."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
-        # set the precision high enough that mp.one - p != 1
-        result = mp.ellipk(1 - p)
-    return result
+def ellipk(m: float) -> float:
+    """Complete elliptic integral of the first kind."""
+    return mp.ellipk(m)
 
 
 @reference_implementation()
@@ -497,13 +629,12 @@ def ellipkinc(phi: float, m: float) -> float:
 
 
 @reference_implementation()
-def ellipj(u: float, m: float) -> Tuple[float, float, float, float]:
-    """Jacobian Elliptic functions."""
-    sn = mp.ellipfun("sn", u=u, m=m)
-    cn = mp.ellipfun("cn", u=u, m=m)
-    dn = mp.ellipfun("dn", u=u, m=m)
-    phi = mp.asin(sn)
-    return sn, cn, dn, phi
+def ellipkm1(p: float) -> float:
+    """Complete elliptic integral of the first kind around m = 1."""
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
+        # set the precision high enough that mp.one - p != 1
+        result = mp.ellipk(1 - p)
+    return result
 
 
 @overload
@@ -574,7 +705,6 @@ def erfcx(x):
 def erfcinv(x: float) -> float:
     """Inverse of the complementary error function."""
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))) + 53)):
-        # set the precision high enough that mp.one - x != 1
         result = mp.erfinv(mp.one - x)
     return result
 
@@ -696,6 +826,12 @@ def fdtrc(dfn: float, dfd: float, x: float) -> float:
     return mp.betainc(dfn / 2, dfd / 2, x_dfn / (dfd + x_dfn), 1.0, regularized=True)
 
 
+@reference_implementation()
+def fdtri(dfn: float, dfd: float, p: float) -> float:
+    """F cumulative distribution function."""
+    q = betaincinv.mp_betaincinv(dfn / 2, dfd / 2, p)
+    return q * dfd / ((1 - q) * dfn)
+
 @overload
 def fresnel(x: float) -> Tuple[float, float]: ...
 @overload
@@ -737,15 +873,15 @@ def gamma(x):
 
 
 @reference_implementation()
-def gammainc(a: float, x: float) -> float:
-    """Regularized lower incomplete gamma function."""
-    return mp.gammainc(a, 0, x, regularized=True)
-
-
-@reference_implementation()
 def gammaincc(a: float, x: float) -> float:
     """Regularized upper incomplete gamma function."""
     return mp.gammainc(a, x, mp.inf, regularized=True)
+
+
+@reference_implementation()
+def gammainc(a: float, x: float) -> float:
+    """Regularized lower incomplete gamma function."""
+    return mp.gammainc(a, 0, x, regularized=True)
 
 
 def _gammainccinv_initial_bracket(a, y):
@@ -787,15 +923,6 @@ def _gammainccinv_initial_bracket(a, y):
 
 
 @reference_implementation()
-def gammaincinv(a: float, y: float) -> float:
-    """Inverse to the regularized lower incomplete gamma function."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
-        # set the precision high enough that mp.one - y != 1
-        result = gammainccinv.mp_gammainccinv(a, mp.one - y)
-    return result
-
-
-@reference_implementation()
 def gammainccinv(a: float, y: float) -> float:
     """Inverse to the regularized upper incomplete gamma function."""
     # special cases
@@ -816,6 +943,15 @@ def gammainccinv(a: float, y: float) -> float:
         # valid bracket.
         xl, xr = mp.zero, mp.mpf("2e308")
     return solve_bisect(f, xl, xr)
+
+
+@reference_implementation()
+def gammaincinv(a: float, y: float) -> float:
+    """Inverse to the regularized lower incomplete gamma function."""
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
+        # set the precision high enough that mp.one - y != 1
+        result = gammainccinv.mp_gammainccinv(a, mp.one - y)
+    return result
 
 
 @reference_implementation()
@@ -848,88 +984,20 @@ def gdtrc(a: float, b: float, x: float)-> float:
     return mp.gammainc(b, a * x, mp.inf, regularized=True)
 
 
+@reference_implementation(uses_mp=False)
+def gdtrib(a: float, p: float, x: float) -> float:
+    """Inverse of `gdtr` vs b."""
+    return special.gdtrib(a, p, x)
+
+
 @overload
-def hankel1(v: float, z: float) -> float: ...
+def hyp1f1(a: float, b: float, z: float) -> float: ...
 @overload
-def hankel1(v: float, z: complex) -> complex: ...
+def hyp1f1(a: float, b: float, z: complex) -> complex: ...
 
 
 @reference_implementation()
-def hankel1(v, z):
-    """Hankel function of the first kind.
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.hankel1(v, z)
-
-
-@overload
-def hankel1e(v: float, z: float) -> float: ...
-@overload
-def hankel1e(v: float, z: complex) -> complex: ...
-
-
-@reference_implementation()
-def hankel1e(v, z):
-    """Exponentially scaled Hankel function of the first kind.
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.hankel1(v, w) * mp.exp(z * -1j)
-
-
-@overload
-def hankel2(v: float, z: float) -> float: ...
-@overload
-def hankel2(v: float, z: complex) -> complex: ...
-
-
-@reference_implementation()
-def hankel2(v, z):
-    """Hankel function of the second kind.
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.hankel2(v, z)
-
-
-@overload
-def hankel2e(v: float, z: float) -> float: ...
-@overload
-def hankel2e(v: float, z: complex) -> complex: ...
-
-
-@reference_implementation()
-def hankel2e(v, z):
-    """Exponentially scaled Hankel function of the second kind.
-
-    Notes
-    -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
-    return mp.hankel2(v, w) * mp.exp(z * 1j)
-
-
-@reference_implementation()
-def hyp1f1(a: float, b: float, z: complex) -> complex:
+def hyp1f1(a, b, z):
     """Confluent hypergeometric function 1F1.
 
     Notes
@@ -972,6 +1040,80 @@ def hyperu(a: float, b: float, z: float) -> float:
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
     return mp.hyperu(a, b, z)
+
+
+@reference_implementation()
+def it1i0k0(x: float) -> Tuple[float, float]:
+    """Integrals of modified Bessel functions of order 0."""
+    result1 = mp.quad(cyl_bessel_i0.mp_cyl_bessel_i0, [0, x])
+    result2 = mp.quad(cyl_bessel_k0.mp_cyl_bessel_k0, [0, x])
+    return result1, result2
+
+
+@reference_implementation()
+def it1j0y0(x: float) -> Tuple[float, float]:
+    """Integrals of Bessel functions of the first kind of order 0."""
+    result1 = mp.quad(cyl_bessel_j0.mp_cyl_bessel_j0, [0, x])
+    result2 = mp.quad(cyl_bessel_y0.mp_cyl_bessel_y0, [0, x])
+    return result1, result2
+
+
+@reference_implementation()
+def it2i0k0(x: float) -> Tuple[float, float]:
+    """Integrals related to modified Bessel functions of order 0.
+
+    TODO: Take a closer look at this and it2j0y0.
+    """
+
+    def f1(t):
+        return (cyl_bessel_i0.mp_cyl_bessel_i0(t) - 1) / t
+
+    def f2(t):
+        return cyl_bessel_k0.mp_cyl_bessel_k0(t) / t
+        
+    result1 = mp.quad(f1, [0, x])
+    result2 = mp.quad(f2, [0, x])
+    return result1, result2
+
+
+@reference_implementation()
+def it2j0y0(x: float) -> Tuple[float, float]:
+    """Integrals related to Bessel functions of the first kind of order 0."""
+
+    def f1(t):
+        return (1 - cyl_bessel_j0.mp_cyl_bessel_i0(t)) / t
+
+    def f2(t):
+        return cyl_bessel_y0.mp_cyl_bessel_k0(t) / t
+        
+    result1 = mp.quad(f1, [0, x])
+    result2 = mp.quad(f2, [0, x])
+    return result1, result2
+
+
+@reference_implementation()
+def it2struve0(x: float) -> float:
+    """Integral related to the Struve function of order 0."""
+    def f(t):
+        return struve_h.mp_struve_h(0, t) / t
+
+    return mp.quad(f, [0, x])
+
+
+@reference_implementation()
+def itairy(x: float) -> Tuple[float, float, float, float]:
+    """Integrals of Airy functions."""
+    def ai(t):
+        return mp.airyai(t)
+
+    def bi(t):
+        return mp.airybi(t)
+
+    result1 = mp.quad(ai, [0, x])
+    result2 = mp.quad(bi, [0, x])
+    result3 = mp.quad(ai, [-x, 0])
+    result4 = mp.quad(bi, [-x, 0])
+    return result1, result2, result3, result4
 
 
 @reference_implementation()
@@ -1236,7 +1378,7 @@ def sinpi(x):
 @reference_implementation()
 def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))) + 53):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))) + 53)):
         # set the precision high enough that mp.one - z != 1
         result = mp.polylog(2, mp.one - z)
     return result
@@ -1337,7 +1479,7 @@ def xlog1py(x, y):
     return x * mp.log1p(y)
 
 
- @reference_implementation()
+@reference_implementation()
 def zeta(z: float, q: float) -> float:
     """Hurwitz zeta function."""
     if z == 1.0:
