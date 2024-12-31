@@ -1355,8 +1355,6 @@ def zetac(z: float) -> float:
 
 
 def _wright_bessel(a, b, x):
-    a, b, x = (_to_arbitrary_precision(t) for t in (a, b, x))
-
     def term(k):
         return x**k / (mp.factorial(k) * mp.gamma(a * k + b))
 
