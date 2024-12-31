@@ -1346,7 +1346,7 @@ def zetac(z: float) -> float:
     """Riemann zeta function minus 1."""
     if z == 1.0:
         return mp.nan
-    with mp.workprec(max(mp.prec, int(mp.ceil(z.real)))):
+    with mp.workprec(max(mp.prec, int(mp.ceil(z.real)) + 53)):
         # set the precision high enough to avoid catastrophic cancellation.
         # As z approaches +inf in the right halfplane:
         # zeta(z) - 1 = 2^-z + O(3^-z).
