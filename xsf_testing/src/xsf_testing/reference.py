@@ -124,7 +124,10 @@ def betainccinv(a: float, b: float, y: float) -> float:
 def bdtr(k: float, n: float, p: float) -> float:
     """Binomial distribution cumulative distribution function."""
     k, n = mp.floor(k), mp.floor(n)
-    return mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
+        # set the precision high enough that mp.one - p != 1
+        result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
+    return result
 
 
 @reference_implementation()
@@ -166,7 +169,11 @@ def cosdg(x: float) -> float:
 @reference_implementation()
 def cosm1(x: float) -> float:
     """cos(x) - 1 for use when x is near zero."""
-    return mp.cos(x) - 1
+    y = mp.cos(x)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
+        # set the precision high enough that mp.cos(x) - 1 != -1
+        result =  y - mp.one
+    return result
 
 
 @overload
@@ -475,7 +482,10 @@ def ellipk(m: float) -> float:
 @reference_implementation()
 def ellipkm1(p: float) -> float:
     """Complete elliptic integral of the first kind around m = 1."""
-    return mp.ellipk(1 - p)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
+        # set the precision high enough that mp.one - p != 1
+        result = mp.ellipk(1 - p)
+    return result
 
 
 @reference_implementation()
@@ -561,7 +571,10 @@ def erfcx(x):
 @reference_implementation()
 def erfcinv(x: float) -> float:
     """Inverse of the complementary error function."""
-    return mp.erfinv(mp.one - mp.mpf(x))
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))))):
+        # set the precision high enough that mp.one - x != 1
+        result = mp.erfinv(mp.one - x)
+    return result
 
 
 @overload
@@ -660,7 +673,11 @@ def expn(n: int, x: float) -> float:
 @reference_implementation()
 def exprel(x: float) -> float:
     """Relative error exponential, (exp(x) - 1)/x."""
-    return (mp.exp(x) - 1) / x
+    y = mp.exp(x)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
+        # set the precision high enough that mp.exp(x) - 1 != -1
+        result = (y - 1) / x
+    return result
 
 
 @reference_implementation()
@@ -770,26 +787,10 @@ def _gammainccinv_initial_bracket(a, y):
 @reference_implementation()
 def gammaincinv(a: float, y: float) -> float:
     """Inverse to the regularized lower incomplete gamma function."""
-    # special cases
-    if y == 0:
-        return 1.0
-    if y == 1:
-        return math.inf
-    if y > 1 or y < 0:
-        return math.nan
-
-    def f(x):
-        return mp.gammainc(a, 0, x, regularized=True) - y
-
-    with mp.workdps(int(mp.ceil(-mp.log10(y)))):
-        # set the dps high enough that mp.one - y != 1
-        xl, xr = _gammainccinv_initial_bracket(a, mp.one - y)
-    if xl >= xr or mp.sign(f(xl)) == mp.sign(f(xr)):
-        # This should not happen, but is here so code reviewers won't need to
-        # verify that _gammainccinv_initial_bracket will always return a
-        # valid bracket.
-        xl, xr = mp.zero, mp.mpf("2e308")
-    return solve_bisect(f, xl, xr)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
+        # set the precision high enough that mp.one - y != 1
+        result = gammainccinv.mp_gammainccinv(a, mp.one - y)
+    return result
 
 
 @reference_implementation()
@@ -1227,7 +1228,10 @@ def sinpi(x):
 @reference_implementation()
 def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
-    return mp.polylog(2, 1 - z)
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))))):
+        # set the precision high enough that mp.one - z != 1
+        result mp.polylog(2, mp.one - z)
+    return result
 
 
 @reference_implementation()
@@ -1338,7 +1342,10 @@ def zetac(z: float) -> float:
     """Riemann zeta function minus 1."""
     if z == 1.0:
         return mp.nan
-    return mp.zeta(z) - mp.one
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))))):
+        # set the precision high enough that mp.one - z != 1
+        result = mp.zeta(z) - mp.one
+    return result
 
 
 def _wright_bessel(a, b, x):
