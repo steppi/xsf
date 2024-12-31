@@ -169,10 +169,10 @@ def cosdg(x: float) -> float:
 @reference_implementation()
 def cosm1(x: float) -> float:
     """cos(x) - 1 for use when x is near zero."""
-    y = mp.cos(x)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
-        # set the precision high enough that mp.cos(x) - 1 != -1
-        result =  y - mp.one
+    with mp.workprec(max(mp.prec, int(mp.ceil(-2*mp.log2(abs(x)))) + 53)):
+        # set the precision high enough to avoid catastrophic cancellation
+        # cos(x) - 1 = x^2/2 + O(x^4) for x near 0
+        result =  mp.cos(x) - mp.one
     return result
 
 
@@ -673,10 +673,10 @@ def expn(n: int, x: float) -> float:
 @reference_implementation()
 def exprel(x: float) -> float:
     """Relative error exponential, (exp(x) - 1)/x."""
-    y = mp.exp(x)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
-        # set the precision high enough that mp.exp(x) - 1 != -1
-        result = (y - 1) / x
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))) + 53)):
+        # set the precision high enough to avoid catastrophic cancellation
+        # Near 0, mp.exp(x) - 1 = x + O(x^2)
+        result = (mp.exp(x) - 1) / x
     return result
 
 
@@ -1041,7 +1041,7 @@ def log1pmx(z: complex) -> complex: ...
 
 
 @reference_implementation()
-def log1pmx(x):
+def log1pmx(z):
     """log(x + 1) - x.
 
     Notes
@@ -1051,7 +1051,11 @@ def log1pmx(x):
     if z.imag == 0 and z.real < -1:
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
-    return mp.log1p(x) - x
+    with mp.workprec(max(mp.prec, int(mp.ceil(-2*mp.log2(abs(z)))) + 53)):
+        # set the precision high enough to avoid catastrophic cancellation.
+        # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
+        result = mp.log1p(z) - z
+    return result
 
 
 @overload
@@ -1230,7 +1234,7 @@ def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))))):
         # set the precision high enough that mp.one - z != 1
-        result mp.polylog(2, mp.one - z)
+        result = mp.polylog(2, mp.one - z)
     return result
 
 
@@ -1342,8 +1346,10 @@ def zetac(z: float) -> float:
     """Riemann zeta function minus 1."""
     if z == 1.0:
         return mp.nan
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))))):
-        # set the precision high enough that mp.one - z != 1
+    with mp.workprec(max(mp.prec, int(mp.ceil(z.real)))):
+        # set the precision high enough to avoid catastrophic cancellation.
+        # As z approaches +inf in the right halfplane:
+        # zeta(z) - 1 = 2^-z + O(3^-z).
         result = mp.zeta(z) - mp.one
     return result
 
