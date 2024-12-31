@@ -124,7 +124,7 @@ def betainccinv(a: float, b: float, y: float) -> float:
 def bdtr(k: float, n: float, p: float) -> float:
     """Binomial distribution cumulative distribution function."""
     k, n = mp.floor(k), mp.floor(n)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))) + 53)):
         # set the precision high enough that mp.one - p != 1
         result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
     return result
@@ -169,9 +169,11 @@ def cosdg(x: float) -> float:
 @reference_implementation()
 def cosm1(x: float) -> float:
     """cos(x) - 1 for use when x is near zero."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-2*mp.log2(abs(x)))) + 53)):
-        # set the precision high enough to avoid catastrophic cancellation
-        # cos(x) - 1 = x^2/2 + O(x^4) for x near 0
+    # set the precision high enough to avoid catastrophic cancellation
+    # cos(x) - 1 = x^2/2 + O(x^4) for x near 0
+    precision = min(int(mp.ceil(-2*mp.log2(abs(x)))), 1024) + 53
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result =  mp.cos(x) - mp.one
     return result
 
@@ -571,7 +573,7 @@ def erfcx(x):
 @reference_implementation()
 def erfcinv(x: float) -> float:
     """Inverse of the complementary error function."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))))):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))) + 53)):
         # set the precision high enough that mp.one - x != 1
         result = mp.erfinv(mp.one - x)
     return result
@@ -1051,9 +1053,11 @@ def log1pmx(z):
     if z.imag == 0 and z.real < -1:
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-2*mp.log2(abs(z)))) + 53)):
-        # set the precision high enough to avoid catastrophic cancellation.
-        # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
+    # set the precision high enough to avoid catastrophic cancellation.
+    # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
+    precision = min(int(mp.ceil(-2*mp.log2(abs(x)))), 1024) + 53
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result = mp.log1p(z) - z
     return result
 
@@ -1232,7 +1236,7 @@ def sinpi(x):
 @reference_implementation()
 def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))))):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))) + 53):
         # set the precision high enough that mp.one - z != 1
         result = mp.polylog(2, mp.one - z)
     return result
@@ -1333,7 +1337,7 @@ def xlog1py(x, y):
     return x * mp.log1p(y)
 
 
-@reference_implementation()
+ @reference_implementation()
 def zeta(z: float, q: float) -> float:
     """Hurwitz zeta function."""
     if z == 1.0:
@@ -1346,10 +1350,12 @@ def zetac(z: float) -> float:
     """Riemann zeta function minus 1."""
     if z == 1.0:
         return mp.nan
+    # set the precision high enough to avoid catastrophic cancellation.
+    # As z approaches +inf in the right halfplane:
+    # zeta(z) - 1 = 2^-z + O(3^-z).
+            
     with mp.workprec(max(mp.prec, int(mp.ceil(z.real)) + 53)):
-        # set the precision high enough to avoid catastrophic cancellation.
-        # As z approaches +inf in the right halfplane:
-        # zeta(z) - 1 = 2^-z + O(3^-z).
+
         result = mp.zeta(z) - mp.one
     return result
 
