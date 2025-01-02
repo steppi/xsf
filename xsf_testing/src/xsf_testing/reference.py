@@ -1972,6 +1972,19 @@ def solve_secant(f, x0, x1, *, maxiter=10000):
     return x
 
 
-_exclude = ["math", "mp", "overload", "reference_implementation", "Tuple", ]
+_exclude = [
+    "Bisection",
+    "Secant",
+    "math",
+    "mp",
+    "np",
+    "overload",
+    "reference_implementation",
+    "scipy",
+    "special",
+    "sys",
+    "Tuple",
+    "version",
+]
 
 __all__ = [s for s in dir() if not s.startswith("_") and s not in _exclude]
