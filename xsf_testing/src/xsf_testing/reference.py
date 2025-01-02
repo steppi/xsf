@@ -211,10 +211,10 @@ def chdtri(v: float, p: float) -> float:
     return 2 * gammainccinv.mp_gammainccinv(v / 2, p)
 
 
-@reference_implementation()
+@reference_implementation(uses_mp=False)
 def cosdg(x: float) -> float:
     """Cosine of the angle x given in degrees."""
-    return mp.cos(mp.radians(x))
+    return special.cosdg(x)
 
 
 @reference_implementation()
@@ -241,10 +241,10 @@ def cospi(x):
     return mp.cospi(x)
 
 
-@reference_implementation()
+@reference_implementation(uses_mp=False)
 def cotdg(x: float) -> float:
     """Cotangent of the angle x given in degrees."""
-    return mp.cot(mp.radians(x))
+    return special.cotdg(x)
 
 
 @overload
@@ -1735,6 +1735,42 @@ def sinpi(x):
     return mp.sinpi(x)
 
 
+@reference_implementation(uses_mp=False)
+def smirnov(n: int, d: float) -> float:
+    """Kolmogorov-Smirnov complementary cumulative distribution function."""
+    return special.smirnov(n, d)
+
+
+@reference_implementation(uses_mp=False)
+def smirnovc(n: int, d: float) -> float:
+    """Kolmogorov-Smirnov cumulative distribution function."""
+    return special._ufuncs.smirnovc(n, d)
+
+
+@reference_implementation(uses_mp=False)
+def smirnovc(n: int, d: float) -> float:
+    """Kolmogorov-Smirnov cumulative distribution function."""
+    return special._ufuncs.smirnovc(n, d)
+
+
+@reference_implementation(uses_mp=False)
+def smirnovci(n: int, p: float) -> float:
+    """Inverse to `smirnovc`."""
+    return special._ufuncs.smirnovc(n, p)
+
+
+@reference_implementation(uses_mp=False)
+def smirnovi(n: int, p: float) -> float:
+    """Inverse to `smirnov`."""
+    return special.smirnovi(n, p)
+
+
+@reference_implementation(uses_mp=False)
+def smirnovp(n: int, d: float) -> float:
+    """Negative of Kolmogorov-Smirnov pdf."""
+    return special._ufuncs._smirnovp(n, d)
+
+
 @reference_implementation()
 def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
@@ -1756,10 +1792,10 @@ def struve_l(v: float, x: float) -> float:
     return  mp.struvel(v, x)
 
 
-@reference_implementation()
+@reference_implementation(uses_mp=False)
 def tandg(x: float) -> float:
     """Tangent of angle x given in degrees."""
-    return mp.tan(mp.radians(x))
+    return special.tandg(x)
 
 
 @reference_implementation()
