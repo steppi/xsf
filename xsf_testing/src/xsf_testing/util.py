@@ -145,7 +145,7 @@ def reference_implementation(*, dps=100, uses_mp=True):
                     result = (result, )
                 return process_output(result, output_types)
         wrapper.__annotations__ =  typing.get_type_hints(func)
-        setattr(wrapper, f"mp_{func.__name__}", func)
+        setattr(wrapper, "_mp", func)
         return wrapper
     return _reference_implementation
 

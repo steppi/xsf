@@ -89,7 +89,7 @@ def bdtri(k: float, n: float, y: float) -> float:
     """Inverse function to `bdtr` with respect to `p`."""
     k, n = mp.floor(k), mp.floor(n)
     def f(p):
-        return bdtr.mp_bdtr(k, n, p) - y
+        return bdtr._mp(k, n, p) - y
 
     return solve_bisect(f, 0, 1)
 
@@ -103,7 +103,7 @@ def bei(x: float) -> float:
 @reference_implementation()
 def beip(x: float) -> float:
     """Derivative of the Kelvin function bei."""
-    return mp.diff(bei.mp_bei, x, n=1)
+    return mp.diff(bei._mp, x, n=1)
 
 
 @reference_implementation()
@@ -115,7 +115,7 @@ def ber(x: float) -> float:
 @reference_implementation()
 def berp(x: float) -> float:
     """Derivative of the Kelvin function ber."""
-    return mp.diff(bei.mp_ber, x, n=1)
+    return mp.diff(bei._mp, x, n=1)
 
 
 @reference_implementation()
@@ -208,7 +208,7 @@ def chdtrc(v: float, x: float) -> float:
 def chdtri(v: float, p: float) -> float:
     """Inverse to `chdtrc` with respect to `x`."""
     # TODO. Figure out why chdtri inverts chdtrc and not chdtr
-    return 2 * gammainccinv.mp_gammainccinv(v / 2, p)
+    return 2 * gammainccinv._mp(v / 2, p)
 
 
 @reference_implementation(uses_mp=False)
@@ -833,7 +833,7 @@ def fdtrc(dfn: float, dfd: float, x: float) -> float:
 @reference_implementation()
 def fdtri(dfn: float, dfd: float, p: float) -> float:
     """F cumulative distribution function."""
-    q = betaincinv.mp_betaincinv(dfn / 2, dfd / 2, p)
+    q = betaincinv._mp(dfn / 2, dfd / 2, p)
     return q * dfd / ((1 - q) * dfn)
 
 @overload
@@ -954,7 +954,7 @@ def gammaincinv(a: float, y: float) -> float:
     """Inverse to the regularized lower incomplete gamma function."""
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(y), b=2))) + 53)):
         # set the precision high enough to resolve mp.one - y
-        result = gammainccinv.mp_gammainccinv(a, mp.one - y)
+        result = gammainccinv._mp(a, mp.one - y)
     return result
 
 
@@ -1049,16 +1049,16 @@ def hyperu(a: float, b: float, z: float) -> float:
 @reference_implementation()
 def it1i0k0(x: float) -> Tuple[float, float]:
     """Integrals of modified Bessel functions of order 0."""
-    result1 = mp.quad(cyl_bessel_i0.mp_cyl_bessel_i0, [0, x])
-    result2 = mp.quad(cyl_bessel_k0.mp_cyl_bessel_k0, [0, x])
+    result1 = mp.quad(cyl_bessel_i0._mp, [0, x])
+    result2 = mp.quad(cyl_bessel_k0._mp, [0, x])
     return result1, result2
 
 
 @reference_implementation()
 def it1j0y0(x: float) -> Tuple[float, float]:
     """Integrals of Bessel functions of the first kind of order 0."""
-    result1 = mp.quad(cyl_bessel_j0.mp_cyl_bessel_j0, [0, x])
-    result2 = mp.quad(cyl_bessel_y0.mp_cyl_bessel_y0, [0, x])
+    result1 = mp.quad(cyl_bessel_j0._mp, [0, x])
+    result2 = mp.quad(cyl_bessel_y0._mp, [0, x])
     return result1, result2
 
 
@@ -1070,10 +1070,10 @@ def it2i0k0(x: float) -> Tuple[float, float]:
     """
 
     def f1(t):
-        return (cyl_bessel_i0.mp_cyl_bessel_i0(t) - 1) / t
+        return (cyl_bessel_i0._mp(t) - 1) / t
 
     def f2(t):
-        return cyl_bessel_k0.mp_cyl_bessel_k0(t) / t
+        return cyl_bessel_k0._mp(t) / t
 
     result1 = mp.quad(f1, [0, x])
     result2 = mp.quad(f2, [0, x])
@@ -1085,10 +1085,10 @@ def it2j0y0(x: float) -> Tuple[float, float]:
     """Integrals related to Bessel functions of the first kind of order 0."""
 
     def f1(t):
-        return (1 - cyl_bessel_j0.mp_cyl_bessel_i0(t)) / t
+        return (1 - cyl_bessel_j0._mp(t)) / t
 
     def f2(t):
-        return cyl_bessel_y0.mp_cyl_bessel_k0(t) / t
+        return cyl_bessel_y0._mp(t) / t
 
     result1 = mp.quad(f1, [0, x])
     result2 = mp.quad(f2, [0, x])
@@ -1099,7 +1099,7 @@ def it2j0y0(x: float) -> Tuple[float, float]:
 def it2struve0(x: float) -> float:
     """Integral related to the Struve function of order 0."""
     def f(t):
-        return struve_h.mp_struve_h(0, t) / t
+        return struve_h._mp(0, t) / t
 
     return mp.quad(f, [0, x])
 
@@ -1124,7 +1124,7 @@ def itairy(x: float) -> Tuple[float, float, float, float]:
 def itmodstruve0(x: float) -> float:
     """Integral of the modified Struve function of order 0."""
     def f(t):
-        return struve_l.mp_struve_l(0, t)
+        return struve_l._mp(0, t)
 
     return mp.quad(f, [0, x])
 
@@ -1133,7 +1133,7 @@ def itmodstruve0(x: float) -> float:
 def itstruve0(x: float) -> float:
     """Integral of the modified Struve function of order 0."""
     def f(t):
-        return struve_l.mp_struve_h(0, t)
+        return struve_l._mp(0, t)
 
     return mp.quad(f, [0, x])
 
@@ -1141,15 +1141,15 @@ def itstruve0(x: float) -> float:
 @reference_implementation()
 def iv_ratio(v: float, x: float) -> float:
     """Returns the ratio ``iv(v, x) / iv(v - 1, x)``"""
-    numerator = cyl_bessel_i.mp_cyl_bessel_i(v, x)
-    return numerator / cyl_bessel_i.mp_cyl_bessel_i(v - 1, x)
+    numerator = cyl_bessel_i._mp(v, x)
+    return numerator / cyl_bessel_i._mp(v - 1, x)
 
 
 @reference_implementation()
 def iv_ratio_c(v: float, x: float) -> float:
     """Returns ``1 - iv_ratio(v, x)``."""
-    numerator = cyl_bessel_i.mp_cyl_bessel_i(v, x)
-    denominator = cyl_bessel_i.mp_cyl_bessel_i(v - 1, x)
+    numerator = cyl_bessel_i._mp(v, x)
+    denominator = cyl_bessel_i._mp(v - 1, x)
     # Set precision high enough to avoid catastrophic cancellation.
     # For large x, iv_ratio_c(v, x) ~ (v - 0.5) / x
     if x != 0:
@@ -1171,7 +1171,7 @@ def kei(x: float) -> float:
 @reference_implementation()
 def keip(x: float) -> float:
     """Derivative of the Kelvin function kei."""
-    return mp.diff(kei.mp_kei, x, n=1)
+    return mp.diff(kei._mp, x, n=1)
 
 
 @reference_implementation(uses_mp=False)
@@ -1193,7 +1193,7 @@ def ker(x: float) -> float:
 @reference_implementation()
 def kerp(x: float) -> float:
     """Derivative of the Kelvin function kerp."""
-    return mp.diff(ker.mp_ker, x, n=1)
+    return mp.diff(ker._mp, x, n=1)
 
 
 @reference_implementation(uses_mp=False)
@@ -1520,21 +1520,21 @@ def pbwa(v: float, x: float) -> Tuple[float, float]:
 def pdtr(k: float, m: float) -> float:
     """Poisson cumulative distribution function."""
     k = mp.floor(k)
-    return gammaincc.mp_gammaincc(k + 1, m)
+    return gammaincc._mp(k + 1, m)
 
 
 @reference_implementation()
 def pdtrc(k: float, m: float) -> float:
     """Poisson survival function."""
     k = mp.floor(k)
-    return gammainc.mp_gammainc(k + 1, m)
+    return gammainc._mp(k + 1, m)
 
 
 @reference_implementation()
 def pdtri(k: float, y: float) -> float:
     """Inverse of `pdtr` vs m."""
     k = mp.floor(k)
-    return gammainccinv.mp_gammainccinv(k + 1, y)
+    return gammainccinv._mp(k + 1, y)
 
 
 @reference_implementation(uses_mp=False)
