@@ -71,7 +71,7 @@ def airye(z):
 def bdtr(k: float, n: float, p: float) -> float:
     """Binomial distribution cumulative distribution function."""
     k, n = mp.floor(k), mp.floor(n)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))) + 53)):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))) + 53)):
         # set the precision high enough that mp.one - p != 1
         result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
     return result
@@ -222,7 +222,7 @@ def cosm1(x: float) -> float:
     """cos(x) - 1 for use when x is near zero."""
     # set the precision high enough to avoid catastrophic cancellation
     # cos(x) - 1 = x^2/2 + O(x^4) for x near 0
-    precision = min(int(mp.ceil(-2*mp.log2(abs(x)))), 1024) + 53
+    precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
         result =  mp.cos(x) - mp.one
@@ -631,7 +631,7 @@ def ellipkinc(phi: float, m: float) -> float:
 @reference_implementation()
 def ellipkm1(p: float) -> float:
     """Complete elliptic integral of the first kind around m = 1."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(p)))))):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))))):
         # set the precision high enough that mp.one - p != 1
         result = mp.ellipk(1 - p)
     return result
@@ -704,7 +704,11 @@ def erfcx(x):
 @reference_implementation()
 def erfcinv(x: float) -> float:
     """Inverse of the complementary error function."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))) + 53)):
+    if not 0 <= x <= 2:
+        return math.nan
+    if x == 0:
+        return math.inf
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
         result = mp.erfinv(mp.one - x)
     return result
 
@@ -805,7 +809,7 @@ def expn(n: int, x: float) -> float:
 @reference_implementation()
 def exprel(x: float) -> float:
     """Relative error exponential, (exp(x) - 1)/x."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(x)))) + 53)):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
         # set the precision high enough to avoid catastrophic cancellation
         # Near 0, mp.exp(x) - 1 = x + O(x^2)
         result = (mp.exp(x) - 1) / x
@@ -948,8 +952,8 @@ def gammainccinv(a: float, y: float) -> float:
 @reference_implementation()
 def gammaincinv(a: float, y: float) -> float:
     """Inverse to the regularized lower incomplete gamma function."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(y)))))):
-        # set the precision high enough that mp.one - y != 1
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(y), b=2))) + 53)):
+        # set the precision high enough to resolve mp.one - y
         result = gammainccinv.mp_gammainccinv(a, mp.one - y)
     return result
 
@@ -1070,7 +1074,7 @@ def it2i0k0(x: float) -> Tuple[float, float]:
 
     def f2(t):
         return cyl_bessel_k0.mp_cyl_bessel_k0(t) / t
-        
+
     result1 = mp.quad(f1, [0, x])
     result2 = mp.quad(f2, [0, x])
     return result1, result2
@@ -1085,7 +1089,7 @@ def it2j0y0(x: float) -> Tuple[float, float]:
 
     def f2(t):
         return cyl_bessel_y0.mp_cyl_bessel_k0(t) / t
-        
+
     result1 = mp.quad(f1, [0, x])
     result2 = mp.quad(f2, [0, x])
     return result1, result2
@@ -1117,15 +1121,118 @@ def itairy(x: float) -> Tuple[float, float, float, float]:
 
 
 @reference_implementation()
+def itmodstruve0(x: float) -> float:
+    """Integral of the modified Struve function of order 0."""
+    def f(t):
+        return struve_l.mp_struve_l(0, t)
+
+    return mp.quad(f, [0, x])
+
+
+@reference_implementation()
+def itstruve0(x: float) -> float:
+    """Integral of the modified Struve function of order 0."""
+    def f(t):
+        return struve_l.mp_struve_h(0, t)
+
+    return mp.quad(f, [0, x])
+
+
+@reference_implementation()
+def iv_ratio(v: float, x: float) -> float:
+    """Returns the ratio ``iv(v, x) / iv(v - 1, x)``"""
+    numerator = cyl_bessel_i.mp_cyl_bessel_i(v, x)
+    return numerator / cyl_bessel_i.mp_cyl_bessel_i(v - 1, x)
+
+
+@reference_implementation()
+def iv_ratio_c(v: float, x: float) -> float:
+    """Returns ``1 - iv_ratio(v, x)``."""
+    numerator = cyl_bessel_i.mp_cyl_bessel_i(v, x)
+    denominator = cyl_bessel_i.mp_cyl_bessel_i(v - 1, x)
+    # Set precision high enough to avoid catastrophic cancellation.
+    # For large x, iv_ratio_c(v, x) ~ (v - 0.5) / x
+    if x != 0:
+        precision = int(mp.ceil(-mp.log(abs((v - 0.5)/x), b=2))) + 53
+        precision = max(mp.prec, precision)
+    else:
+        precision = mp.prec
+    with mp.workprec(precision):
+        result = mp.one - numerator / denominator
+    return result
+
+
+@reference_implementation()
 def kei(x: float) -> float:
     """Kelvin function kei."""
     return mp.kei(0, x)
 
 
 @reference_implementation()
+def keip(x: float) -> float:
+    """Derivative of the Kelvin function kei."""
+    return mp.diff(kei.mp_kei, x, n=1)
+
+
+@reference_implementation(uses_mp=False)
+def kelvin(x: float) -> Tuple[complex, complex, complex, complex]:
+    """Kelvin functions as complex numbers."""
+    be = complex(ber(x), bei(x))
+    ke = complex(ker(x), kei(x))
+    bep = complex(berp(x), beip(x))
+    kep = complex(kerp(x), keip(x))
+    return be, ke, bep, kep
+
+
+@reference_implementation()
 def ker(x: float) -> float:
     """Kelvin function ker."""
     return mp.ker(0, x)
+
+
+@reference_implementation()
+def kerp(x: float) -> float:
+    """Derivative of the Kelvin function kerp."""
+    return mp.diff(ker.mp_ker, x, n=1)
+
+
+@reference_implementation(uses_mp=False)
+def kolmogc(x: float) -> float:
+    """CDF of Kolmogorov distribution.
+
+    CDF of Kolmogorov distribution can be expressed in terms of
+    Jacobi Theta functions.
+    TODO: Look into writing arbitrary precision reference implementations
+    for kolmogc, kolmogci, kolmogi, and kolmogorov.
+    """
+    return special._ufuncs._kolmogc(x)
+
+
+@reference_implementation(uses_mp=False)
+def kolmogci(x: float) -> float:
+    """Inverse CDF of Kolmogorov distribution."""
+    return special._ufuncs._kolmogci(x)
+
+
+@reference_implementation(uses_mp=False)
+def kolmogi(x: float) -> float:
+    """Inverse Survival Function of Kolmogorov distribution."""
+    return special._ufuncs._kolmogi(x)
+
+
+@reference_implementation(uses_mp=False)
+def kolmogorov(x: float) -> float:
+    """Survival Function of Kolmogorov distribution."""
+    return special._ufuncs._kolmogorov(x)
+
+
+@reference_implementation(uses_mp=False)
+def kolmogp(x: float) -> float:
+    """Negative of PDF of Kolmogorov distribution.
+
+    TODO: Why is this the negative pdf?
+    """
+    return special._ufuncs._kolmogp(x)
 
 
 @reference_implementation()
@@ -1197,7 +1304,7 @@ def log1pmx(z):
         z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
     # set the precision high enough to avoid catastrophic cancellation.
     # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
-    precision = min(int(mp.ceil(-2*mp.log2(abs(x)))), 1024) + 53
+    precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
         result = mp.log1p(z) - z
@@ -1226,9 +1333,60 @@ def loggamma(z):
 
 
 @reference_implementation()
+def log_expit(x: float) -> float:
+    """Log of `expit`."""
+    return mp.log(mp.sigmoid(x))
+
+
+@reference_implementation()
 def log_wright_bessel(a: float, b: float, x: float) -> float:
     """Natural logarithm of Wright's generalized Bessel function."""
     return mp.log(_wright_bessel(a, b, x))
+
+
+@reference_implementation()
+def logit(x: float) -> float:
+    """Logit function ``logit(p) = log(p/(1 - p))``"""
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))) + 53)):
+        # set the precision high enough to resolve 1 - p.
+        result = mp.log(p/(1-p))
+    return result
+
+
+@reference_implementation(uses_mp=False)
+def mcm1(m: float, q: float, x: float) -> Tuple[float, float]:
+    """Even modified Mathieu function of the first kind and its derivative."""
+    return special.mathieu_modcem1(m, q, x)
+
+
+@reference_implementation(uses_mp=False)
+def mcm2(m: float, q: float, x: float) -> Tuple[float, float]:
+    """Even modified Mathieu function of the second kind and its derivative."""
+    return special.mathieu_modcem2(m, q, x)
+
+
+@reference_implementation(uses_mp=False)
+def modified_fresnel_minus(x: float) -> Tuple[complex, complex]:
+    """Modified Fresnel negative integrals."""
+    return special.modfresnelm(x)
+
+
+@reference_implementation(uses_mp=False)
+def modified_fresnel_plus(x: float) -> Tuple[complex, complex]:
+    """Modified Fresnel negative integrals."""
+    return special.modfresnelp(x)
+
+
+@reference_implementation(uses_mp=False)
+def msm1(m: float, q: float, x: float) -> Tuple[float, float]:
+    """Odd modified Mathieu function of the first kind and its derivative."""
+    return special.mathieu_modsem1(m, q, x)
+
+
+@reference_implementation(uses_mp=False)
+def msm2(m: float, q: float, x: float) -> Tuple[float, float]:
+    """Odd modified Mathieu function of the second kind and its derivative."""
+    return special.mathieu_modsem2(m, q, x)
 
 
 @reference_implementation()
@@ -1247,6 +1405,17 @@ def nbdtrc(k: int, n: int, p: float) -> float:
 def ndtr(x: float) -> float:
     """Cumulative distribution of the standard normal distribution."""
     return mp.ncdf(x)
+
+
+@reference_implementation()
+def ndtri(y: float) -> float:
+    """Inverse of `ndtr` vs x."""
+    if not 0 <= y <= 1:
+        return math.nan
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*y), b=2))) + 53)):
+        # set the precision high enough to resolve 2*y - 1
+        result = mp.sqrt(2) * mp.erfinv(2*y - 1)
+    return result
 
 
 @reference_implementation()
@@ -1378,7 +1547,7 @@ def sinpi(x):
 @reference_implementation()
 def spence(z: float) -> float:
     """Spence's function, also known as the dilogarithm."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log2(abs(z)))) + 53)):
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(z), b=2))) + 53)):
         # set the precision high enough that mp.one - z != 1
         result = mp.polylog(2, mp.one - z)
     return result
@@ -1495,7 +1664,7 @@ def zetac(z: float) -> float:
     # set the precision high enough to avoid catastrophic cancellation.
     # As z approaches +inf in the right halfplane:
     # zeta(z) - 1 = 2^-z + O(3^-z).
-            
+
     with mp.workprec(max(mp.prec, int(mp.ceil(z.real)) + 53)):
 
         result = mp.zeta(z) - mp.one
@@ -1519,7 +1688,7 @@ def solve_bisect(f, xl, xr):
         return xr
     if mp.sign(fl) == mp.sign(fr):
         raise ValueError("f(xl) and f(xr) must have different signs")
-    
+
     DBL_MAX = sys.float_info.max
     DBL_TRUE_MIN = 5e-324
 
