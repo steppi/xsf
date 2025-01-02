@@ -1476,7 +1476,7 @@ def oblate_radial2_nocv(
 
 
 @reference_implementation(uses_mp=False)
-def obl_segv(m: float, n: float, c: float) -> float:
+def oblate_segv(m: float, n: float, c: float) -> float:
     """Characteristic value of oblate spheroidal function."""
     return special.obl_cv(m, n, c)
 
@@ -1519,25 +1519,103 @@ def pbwa(v: float, x: float) -> Tuple[float, float]:
 @reference_implementation()
 def pdtr(k: float, m: float) -> float:
     """Poisson cumulative distribution function."""
-    k =mp.floor(k)
-
-    def term(j):
-        return m**j / mp.factorial(j)
-
-    return mp.exp(-m) * mp.nsum(term, [0, k])
+    k = mp.floor(k)
+    return gammaincc.mp_gammaincc(k + 1, m)
 
 
 @reference_implementation()
 def pdtrc(k: float, m: float) -> float:
     """Poisson survival function."""
     k = mp.floor(k)
-    return mp.gammainc(k + 1, 0, m, regularized=True)
+    return gammainc.mp_gammainc(k + 1, m)
+
+
+@reference_implementation()
+def pdtri(k: float, y: float) -> float:
+    """Inverse of `pdtr` vs m."""
+    k = mp.floor(k)
+    return gammainccinv.mp_gammainccinv(k + 1, y)
+
+
+@reference_implementation(uses_mp=False)
+def pmv(m: int, v: float, x: float) -> float:
+    """Associated Legendre function of integer order and real degree."""
+    return special.lpmv(m, v, x)
 
 
 @reference_implementation()
 def poch(z: float, m: float) -> float:
     """Pochhammer symbol."""
     return mp.rf(z, m)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_aswfa(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal angular function pro_ang1 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.pro_ang1_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_aswfa_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal angular function of the first kind and its derivative."""
+    return special.pro_ang1(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_radial1(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal radial function pro_rad1 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.pro_rad1_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_radial1_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal radial function of the first kind and its derivative."""
+    return special.pro_rad1(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_radial2(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal angular function pro_rad2 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.pro_rad2_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_radial2_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Prolate spheroidal radial function of the second kind and its derivative."""
+    return special.pro_rad2(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def prolate_segv(m: float, n: float, c: float) -> float:
+    """Characteristic value of prolate spheroidal function."""
+    return special.pro_cv(m, n, c)
+
+
+@reference_implementation()
+def radian(d: float, m: float, s: float) -> float:
+    """Convert from degrees to radians."""
+    return mp.radians(d + m / 60 + s / 3600)
 
 
 @overload
@@ -1576,9 +1654,27 @@ def riemann_zeta(z):
 
 
 @reference_implementation()
+def round(x):
+    """Round to the nearest integer."""
+    return mp.nint(x)
+
+
+@reference_implementation()
 def scaled_exp1(x: float) -> float:
     """Exponentially scaled exponential integral E1."""
     return mp.exp(x) * x * mp.e1(x)
+
+
+@reference_implementation(uses_mp=False)
+def sem(m: float, q, float, x: float) -> Tuple[float, float]:
+    """Odd Mathieu function and its derivative."""
+    return special.mathieu_sem(m, q, x)
+
+
+@reference_implementation(uses_mp=False)
+def sem_cva(m: float, q: float) -> float:
+    """Characteristic value of odd Mathieu functions."""
+    return special.mathieu_b(m, q)
 
 
 @overload
@@ -1614,6 +1710,12 @@ def sici(x):
     Sine and cosine integrals are entire functions
     """
     return mp.si(x), mp.ci(x)
+
+
+@reference_implementation(uses_mp=False)
+def sindg(x):
+    """Sine of the angle `x` given in degrees."""
+    return special.sindg(x)
 
 
 @overload
