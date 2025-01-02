@@ -1418,6 +1418,69 @@ def ndtri(y: float) -> float:
     return result
 
 
+@reference_implementation(uses_mp=False)
+def oblate_aswfa(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal angular function obl_ang1 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.obl_ang1_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def oblate_aswfa_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal angular function of the first kind and its derivative."""
+    return special.obl_ang1(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def oblate_radial1(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal radial function obl_rad1 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.obl_rad1_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def oblate_radial1_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal radial function of the first kind and its derivative."""
+    return special.obl_rad1(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def oblate_radial2(
+    m: float, n: float, c: float, cv: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal angular function obl_rad2 for precomputed cv
+
+    cv: Characteristic Value
+    """
+    return special.obl_rad2_cv(m, n, c, cv, x)
+
+
+@reference_implementation(uses_mp=False)
+def oblate_radial2_nocv(
+    m: float, n: float, c: float, x: float
+) -> Tuple[float, float]:
+    """Oblate spheroidal radial function of the second kind and its derivative."""
+    return special.obl_rad2(m, n, c, x)
+
+
+@reference_implementation(uses_mp=False)
+def obl_segv(m: float, n: float, c: float) -> float:
+    """Characteristic value of oblate spheroidal function."""
+    return special.obl_cv(m, n, c)
+
+
 @reference_implementation()
 def owens_t(h: float, a: float) -> float:
     """Owen's T Function."""
@@ -1425,6 +1488,32 @@ def owens_t(h: float, a: float) -> float:
         return mp.exp(-(h**2) * (1 + x**2) / 2) / (1 + x**2)
 
     return mp.quad(integrand, [0, a]) / (2 * mp.pi)
+
+
+@reference_implementation()
+def pbdv(v: float, x: float) -> Tuple[float, float]:
+    """Parabolic cylinder function D."""
+    d = mp.pcfd(v, x)
+    dp = mp.diff(lambda t: mp.pcfd(v, t), x)
+    return d, dp
+
+
+@reference_implementation()
+def pbvv(v: float, x: float) -> Tuple[float, float]:
+    """Parabolic cylinder function V."""
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*v), b=2))) + 53)):
+        # Set precision to guarantee -v - 0.5 retains precision for very small v.
+        d = mp.pcfv(-v - 0.5, x)
+        dp = mp.diff(lambda t: mp.pcfv(-v - 0.5, t), x)
+    return d, dp
+
+
+@reference_implementation()
+def pbwa(v: float, x: float) -> Tuple[float, float]:
+    """Parabolic cylinder function W."""
+    d = mp.pcfw(v, x)
+    dp = mp.diff(lambda t: mp.pcfw(v, t), x)
+    return d, dp
 
 
 @reference_implementation()
