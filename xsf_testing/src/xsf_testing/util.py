@@ -1,10 +1,10 @@
-import atexit
 import csv
 import functools
 import inspect
 import math
 import numpy as np
 import os
+import re
 import typing
 
 from mpmath import mp  # type: ignore
@@ -153,51 +153,47 @@ def reference_implementation(*, dps=100, uses_mp=True):
 class TracedUfunc:
     def __init__(self, ufunc, /, *, outpath=None):
         self.__ufunc = ufunc
-        self.__trace = []
         self.__outpath = outpath
         self.__lock = Lock()
-        atexit.register(self.dump)
 
     def __call__(self, *args, **kwargs):
-        trace_data = {"args": args, "kwargs": kwargs}
-        trace_data.update(self._get_file_metadata())
-        self.__trace.append(trace_data)
+        try:
+            expanded_args = np.broadcast_arrays(*args)
+            # There is a test that inputs will not broadcast which
+            # is asserted to raise a ValueError. Just skip that case.
+            # It's not relevant when directly testing scalar kernels.
+        except ValueError:
+            return self.__ufunc(*args, **kwargs)
+        dtypes = tuple(val.dtype for val in expanded_args)
+        dtypes = self.__ufunc.resolve_dtypes(dtypes + (None, ) * self.__ufunc.nout)
+        expanded_args = [val.flatten() for val in expanded_args]
+        rows = (
+            row + dtypes + self._get_file_metadata() for row in zip(*expanded_args)
+        )
+        with self.__lock:
+            with open(self.__outpath, 'a', newline='') as csvfile:
+                csv.writer(csvfile, lineterminator='\n').writerows(rows)
+
         return self.__ufunc(*args, **kwargs)
 
     def __getattr__(self, name):
         return getattr(self.__ufunc, name)
 
-    @property
-    def trace(self):
-        output = []
-        for entry in self.__trace:
-            try:
-                args = np.broadcast_arrays(*entry["args"])
-            except ValueError:
-                # There is a test that inputs will not broadcast which
-                # is asserted to raise a ValueError. Just skip that case.
-                # It's not relevant when directly testing scalar kernels.
-                continue
-            args = [val.flatten() for val in args]
-            dtypes = tuple(val.dtype for val in args)
-            dtypes = self.__ufunc.resolve_dtypes(dtypes + (None, ) * self.__ufunc.nout)
-            test_file, test_name = entry["test_file"], entry["test_name"]
-            output.extend([row + dtypes + (test_file, test_name) for row in zip(*args)])
-        return output
-
     def _get_file_metadata(self):
-        frame = inspect.currentframe().f_back.f_back
-        test_file = frame.f_globals.get("__file__", "???????")
-        test_file = os.path.join(*test_file.split(os.path.sep)[-3:])
-        test_name = frame.f_code.co_name
-        return {"test_file": test_file, "test_name": test_name}
+        frame = inspect.currentframe()
+        pattern1 = re.compile(r"[^/]+/tests/.+\.py")
+        pattern2 = re.compile("^test_.*")
+        for _ in range(10):
+            test_name = frame.f_code.co_name
+            test_file = frame.f_globals.get("__file__")
+            if test_file is None:
+                return test_file, test_name
+            test_file = os.path.join(*test_file.split(os.path.sep)[-3:])
+            if pattern1.match(test_file) and pattern2.match(test_name):
+                return test_file, test_name
+            frame = frame.f_back
+        return None, None
 
     @property
     def _outpath(self):
         return self.__outpath
-
-    def dump(self):
-        if self.__outpath is not None:
-            with self.__lock:
-                with open(self.__outpath, 'a', newline='') as csvfile:
-                    csv.writer(csvfile, lineterminator='\n').writerows(self.trace)
