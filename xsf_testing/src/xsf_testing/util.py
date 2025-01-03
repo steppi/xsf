@@ -179,13 +179,16 @@ class TracedUfunc:
                 # It's not relevant when directly testing scalar kernels.
                 continue
             args = [val.flatten() for val in args]
+            dtypes = tuple(val.dtype for val in args)
+            dtypes = self.__ufunc.resolve_dtypes(dtypes + (None, ) * self.__ufunc.nout)
             test_file, test_name = entry["test_file"], entry["test_name"]
-            output.extend([row + (test_file, test_name) for row in zip(*args)])
+            output.extend([row + dtypes + (test_file, test_name) for row in zip(*args)])
         return output
 
     def _get_file_metadata(self):
         frame = inspect.currentframe().f_back.f_back
-        test_file = os.path.basename(frame.f_globals.get("__file__", "???????"))
+        test_file = frame.f_globals.get("__file__", "???????")
+        test_file = os.path.join(*test_file.split(os.path.sep)[-3:])
         test_name = frame.f_code.co_name
         return {"test_file": test_file, "test_name": test_name}
 
