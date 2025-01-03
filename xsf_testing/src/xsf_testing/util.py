@@ -155,6 +155,16 @@ class TracedUfunc:
         self.__ufunc = ufunc
         self.__outpath = outpath
         self.__lock = Lock()
+        self._dtype_map = {
+            "float32": "f",
+            "float64": "d",
+            "float128": "g",
+            "complex64": "F",
+            "complex128": "D",
+            "complex256": "G",
+            "int64": "p",
+            "int32": "i",
+        }
 
     def __call__(self, *args, **kwargs):
         try:
@@ -166,9 +176,12 @@ class TracedUfunc:
             return self.__ufunc(*args, **kwargs)
         dtypes = tuple(val.dtype for val in expanded_args)
         dtypes = self.__ufunc.resolve_dtypes(dtypes + (None, ) * self.__ufunc.nout)
+        dtypes = [self._dtype_map[str(dtype)] for dtype in dtypes]
+        sig = "".join(dtypes[:self.__ufunc.nin]) + "->"
+        sig += "".join(dtypes[self.__ufunc.nin:])
         expanded_args = [val.flatten() for val in expanded_args]
         rows = (
-            row + dtypes + self._get_file_metadata() for row in zip(*expanded_args)
+            row + (sig, ) + self._get_file_metadata() for row in zip(*expanded_args)
         )
         with self.__lock:
             with open(self.__outpath, 'a', newline='') as csvfile:
