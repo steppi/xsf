@@ -1981,6 +1981,8 @@ _exclude = [
     "overload",
     "reference_implementation",
     "scipy",
+    "solve_bisect",
+    "solve_secant",
     "special",
     "sys",
     "Tuple",
