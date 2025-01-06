@@ -4,9 +4,11 @@ import inspect
 import math
 import numpy as np
 import os
+import polars as pl
 import re
 import typing
 
+from collections import defaultdict
 from mpmath import mp  # type: ignore
 from threading import Lock
 from typing import overload
@@ -185,7 +187,7 @@ class TracedUfunc:
         )
         with self.__lock:
             with open(self.__outpath, 'a', newline='') as csvfile:
-                csv.writer(csvfile, lineterminator='\n').writerows(rows)
+                csv.writer(csvfile, dialect="unix").writerows(rows)
 
         return self.__ufunc(*args, **kwargs)
 
@@ -210,3 +212,64 @@ class TracedUfunc:
     @property
     def _outpath(self):
         return self.__outpath
+
+
+def _parse_column(col, dtype):
+    if dtype is np.complex64 or dtype is np.complex128:
+        col = col.to_numpy().astype(dtype)
+        real = pl.Series(col.real)
+        imag = pl.Series(col.imag)
+        return pl.DataFrame({"real": real, "imag": imag}).to_struct()
+    if dtype is np.float64:
+        return col.cast(pl.Float64)
+    if dtype is np.float32:
+        return col.cast(pl.Float32)
+    if dtype is np.int32:
+        return col.cast(pl.Int32)
+    if dtype is np.int64:
+        return col.cast(pl.Int64)
+    raise ValueError(f"unsupported dtype: {dtype}")
+
+
+def _traced_cases_to_parquet(infile, outpath):
+    os.makedirs(outpath)
+    dtype_map = {
+        "f": np.float32,
+        "d": np.float64,
+        "F": np.complex64,
+        "D": np.complex128,
+        "p": np.intp,
+        "i": np.int32,
+    }
+    with open(infile, 'r', newline='') as csvfile:
+        new_rows = defaultdict(list)
+        for row in csv.reader(csvfile, dialect="unix"):
+            args = row[:-3]
+            types = row[-3]
+            in_types, out_types = types.split("->")
+            if len(args) != len(in_types):
+                continue
+            try:
+                args = [
+                    str(dtype_map[typecode](arg)) for typecode, arg in zip(in_types, args)
+                ]
+            except IndexError:
+                continue
+            new_rows[types].append(args)
+        
+        for types, rows in new_rows.items():
+            in_types, _ = types.split("->")
+            dtypes = [dtype_map[typecode] for typecode in in_types]
+            df = pl.DataFrame(rows, orient="row").unique()
+            df.columns = [f"in{i}" for i in range(len(df.columns))]
+            df = df.with_columns(
+                *(
+                    _parse_column(df[colname], dtype).alias(f"in{i}")
+                    for i, (colname, dtype) in enumerate(zip(df.columns, dtypes))
+                )
+            )
+            df.write_parquet(
+                os.path.join(outpath, f"{types.replace('->', '_')}.parquet"),
+                compression="zstd",
+                compression_level=22,
+            )
