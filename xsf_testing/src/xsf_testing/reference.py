@@ -253,6 +253,7 @@ def cyl_bessel_i(v: float, z: float) -> float: ...
 def cyl_bessel_i(v: float, z:complex) -> complex: ...
 
 
+@reference_implementation()
 def cyl_bessel_i(v, z):
     """Modified Bessel function of the first kind.
 
@@ -263,7 +264,7 @@ def cyl_bessel_i(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.besseli(v, z)
 
 
@@ -307,7 +308,7 @@ def cyl_bessel_ie(v, x):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.exp(-abs(z.real)) * mp.besseli(v, w)
 
 
@@ -327,7 +328,7 @@ def cyl_bessel_j(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.besselj(v, z)
 
 
@@ -359,7 +360,7 @@ def cyl_bessel_je(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.exp(-abs(z.imag)) * mp.besselj(v, w)
 
 
@@ -379,7 +380,7 @@ def cyl_bessel_k(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.besselk(v, z)
 
 
@@ -423,7 +424,7 @@ def cyl_bessel_ke(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.exp(z) * mp.besselk(v, w)
 
 
@@ -443,7 +444,7 @@ def cyl_bessel_y(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.bessely(v, z)
 
 
@@ -475,7 +476,7 @@ def cyl_bessel_ye(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.bessely(w, z) * mp.exp(-abs(z.imag))
 
 
@@ -495,7 +496,7 @@ def cyl_hankel_1(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hankel1(v, z)
 
 
@@ -515,7 +516,7 @@ def cyl_hankel_1e(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hankel1(v, w) * mp.exp(z * -1j)
 
 
@@ -535,7 +536,7 @@ def cyl_hankel_2(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hankel2(v, z)
 
 
@@ -555,7 +556,7 @@ def cyl_hankel_2e(v, z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hankel2(v, w) * mp.exp(z * 1j)
 
 
@@ -729,7 +730,7 @@ def exp1(x):
     """
     if x.imag == 0 and x.real < 0:
         # On branch cut, choose branch based on sign of zero
-        x += mp.mpc("0", "1e-1000000000") * math.copysign(x.imag)
+        x += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, x.imag)
     return mp.e1(x)
 
 
@@ -773,7 +774,7 @@ def expi(x):
     """
     if x.imag == 0 and x.real < 0:
         # On branch cut, choose branch based on sign of zero
-        x += mp.mpc("0", "1e-1000000000") * math.copysign(x.imag)
+        x += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, x.imag)
     return mp.ei(x)
 
 
@@ -1028,7 +1029,7 @@ def hyp2f1(a, b, c, z):
     """
     if z.imag == 0 and z.real > 1:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hyp2f1(a, b, c, z)
 
 
@@ -1042,7 +1043,7 @@ def hyperu(a: float, b: float, z: float) -> float:
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.hyperu(a, b, z)
 
 
@@ -1248,7 +1249,7 @@ def lambertw(z: complex, k: int) -> complex:
         # On branch cut, choose branch based on sign of zero.
         # mpmath's lambertw currently converts z to a complex128 internally,
         # so the small step here can't be smaller than the smallest subnormal.
-        z += mp.mpc(0, 5e-324) * math.copysign(z.imag)
+        z += mp.mpc(0, 5e-324) * math.copysign(mp.one, z.imag)
     return mp.lambertw(z, k=k)
 
 
@@ -1281,7 +1282,7 @@ def log1p(x):
     """
     if z.imag == 0 and z.real < -1:
         # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.log1p(x)
 
 
@@ -1301,7 +1302,7 @@ def log1pmx(z):
     """
     if z.imag == 0 and z.real < -1:
         # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     # set the precision high enough to avoid catastrophic cancellation.
     # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
     precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
@@ -1328,7 +1329,7 @@ def loggamma(z):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.loggamma(z)
 
 
@@ -1846,7 +1847,7 @@ def xlogy(x, y):
     """
     if z.imag == 0 and z.real < 0:
         # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
         return 0
     return x * mp.log(y)
@@ -1869,7 +1870,7 @@ def xlog1py(x, y):
     """
     if z.imag == 0 and z.real < -1:
         # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(z.imag)
+        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
         return 0
     return x * mp.log1p(y)
