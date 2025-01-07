@@ -5,6 +5,7 @@ import math
 import numpy as np
 import os
 import polars as pl
+import pyarrow.parquet as pq
 import re
 import typing
 
@@ -231,8 +232,8 @@ def _parse_column(col, dtype):
     raise ValueError(f"unsupported dtype: {dtype}")
 
 
-def _traced_cases_to_parquet(infile, outpath):
-    os.makedirs(outpath)
+def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
+    os.makedirs(outpath, exists_ok=True)
     dtype_map = {
         "f": np.float32,
         "d": np.float64,
@@ -241,21 +242,25 @@ def _traced_cases_to_parquet(infile, outpath):
         "p": np.intp,
         "i": np.int32,
     }
-    with open(infile, 'r', newline='') as csvfile:
-        new_rows = defaultdict(list)
-        for row in csv.reader(csvfile, dialect="unix"):
-            args = row[:-3]
-            types = row[-3]
-            in_types, out_types = types.split("->")
-            if len(args) != len(in_types):
-                continue
-            try:
-                args = [
-                    str(dtype_map[typecode](arg)) for typecode, arg in zip(in_types, args)
-                ]
-            except IndexError:
-                continue
-            new_rows[types].append(args)
+    if isinstance(infiles, str):
+        infiles = [infiles]
+
+    new_rows = defaultdict(list)
+    for infile in infiles:
+        with open(infile, 'r', newline='') as csvfile:
+            for row in csv.reader(csvfile, dialect="unix"):
+                args = row[:-3]
+                types = row[-3]
+                in_types, out_types = types.split("->")
+                if len(args) != len(in_types):
+                    continue
+                try:
+                    args = [
+                        str(dtype_map[typecode](arg)) for typecode, arg in zip(in_types, args)
+                    ]
+                except KeyError:
+                    continue
+                new_rows[types].append(args)
         
         for types, rows in new_rows.items():
             in_types, _ = types.split("->")
@@ -268,8 +273,12 @@ def _traced_cases_to_parquet(infile, outpath):
                     for i, (colname, dtype) in enumerate(zip(df.columns, dtypes))
                 )
             )
-            df.write_parquet(
-                os.path.join(outpath, f"{types.replace('->', '_')}.parquet"),
+            df = df.to_arrow()
+            types = types.replace("->", "-")
+            metadata = {b"types": types.encode("utf-8")}
+            df = df.replace_schema_metadata(metadata)
+            pq.write_table(df,
+                os.path.join(outpath, f"{filename_prefix}_{types}.parquet"),
                 compression="zstd",
                 compression_level=22,
             )
