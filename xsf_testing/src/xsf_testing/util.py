@@ -277,8 +277,8 @@ def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
             types = types.replace("->", "-")
             in_types, out_types = types.split("-")
             metadata = {
-                b"in_types": in_types.encode("utf-8"),
-                b"out_types": out_types.encode("utf-8"),
+                b:"in": in_types.encode("ascii"),
+                b"out": out_types.encode("ascii"),
             }
             df = df.replace_schema_metadata(metadata)
             pq.write_table(df,
