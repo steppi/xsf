@@ -233,7 +233,7 @@ def _parse_column(col, dtype):
 
 
 def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
-    os.makedirs(outpath, exists_ok=True)
+    os.makedirs(outpath, exist_ok=True)
     dtype_map = {
         "f": np.float32,
         "d": np.float64,
@@ -275,7 +275,11 @@ def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
             )
             df = df.to_arrow()
             types = types.replace("->", "-")
-            metadata = {b"types": types.encode("utf-8")}
+            in_types, out_types = types.split("-")
+            metadata = {
+                b"in_types": in_types.encode("utf-8"),
+                b"out_types": out_types.encode("utf-8"),
+            }
             df = df.replace_schema_metadata(metadata)
             pq.write_table(df,
                 os.path.join(outpath, f"{filename_prefix}_{types}.parquet"),
