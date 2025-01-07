@@ -113,12 +113,16 @@ def get_signatures(func):
     return signatures
 
 
-def reference_implementation(*, dps=100, uses_mp=True):
-    if not uses_mp:
-        # The reference implementation does not use arbitrary precision.
-        return lambda func: func
+class reference_implementation:
+    def __init__(self, *, dps=100, uses_mp=True):
+        self.dps = dps
+        self.uses_mp = uses_mp
 
-    def _reference_implementation(func):
+    def __call__(self, func):
+        if not self.uses_mp:
+            # The reference implementation does not use arbitrary precision.
+            return func
+
         overloads = typing.get_overloads(func)
         annotations_code = ""
         for overload_def in overloads:
@@ -141,16 +145,15 @@ def reference_implementation(*, dps=100, uses_mp=True):
         exec(annotations_code)
         @functools.wraps(func)
         def wrapper(*args):
-            with mp.workdps(dps):
+            with mp.workdps(self.dps):
                 args, output_types = process_args(func, *args)
                 result = func(*args)
                 if not isinstance(result, tuple):
                     result = (result, )
-                return process_output(result, output_types)
+                    return process_output(result, output_types)
         wrapper.__annotations__ =  typing.get_type_hints(func)
         setattr(wrapper, "_mp", func)
         return wrapper
-    return _reference_implementation
 
 
 class TracedUfunc:
@@ -277,7 +280,7 @@ def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
             types = types.replace("->", "-")
             in_types, out_types = types.split("-")
             metadata = {
-                b:"in": in_types.encode("ascii"),
+                b"in": in_types.encode("ascii"),
                 b"out": out_types.encode("ascii"),
             }
             df = df.replace_schema_metadata(metadata)
