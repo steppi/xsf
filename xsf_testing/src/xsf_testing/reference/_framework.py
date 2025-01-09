@@ -1,4 +1,5 @@
 import functools
+import math
 import numpy as np
 import typing
 
@@ -178,5 +179,3 @@ class reference_implementation:
         wrapper.__annotations__ =  typing.get_type_hints(func)
         setattr(wrapper, "_mp", func)
         return wrapper
-
-
