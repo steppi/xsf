@@ -24,6 +24,37 @@ Real = np.floating
 Complex = np.complexfloating
 
 
+def is_complex(x):
+    """Check if x is a relevant complex type
+
+    Note: The only types which can appear as inputs to a reference
+    implementation after passing through the argument processing added by the
+    decorator are `float`, `mp.mpf`, `complex`, and `mp.mpc` (non mp types can
+    appear in order to preserve the sign of zero).
+    """
+    return isinstance(x, (mp.mpc, complex))
+
+
+def to_fp(x):
+    """Cast mp to finite precision, otherwise idempotent."""
+    if isinstance(x, mp.mpf):
+        return float(x)
+    if isinstance(x, mp.mpc):
+        return complex(x)
+    return x
+
+
+def to_mp(x):
+    """Cast finite precision to mp, otherwise idempotent."""
+    if np.issubdtype(x, Real):
+        return mp.mpf(x)
+    if np.issubdtype(x, Integer):
+        return int(x)
+    if np.issubdtype(x, Complex):
+        return mp.mpc(x)
+    return x
+
+
 @overload
 def airy(x: Real) -> Tuple[Real, Real, Real, Real]: ...
 @overload
@@ -127,7 +158,7 @@ def berp(x: Real) -> Real:
 def besselpoly(a: Real, lmb: Real, nu: Real) -> Real:
     """Weighted integral of the Bessel function of the first kind."""
     def integrand(x):
-        return x**lmb * mp.besselj(nu, 2 * a * x)
+        return x**lmb * cyl_bessel_j._mp(nu, 2 * a * x)
 
     return mp.quad(integrand, [0, 1])
 
@@ -265,36 +296,54 @@ def cyl_bessel_i(v, z):
 
     Notes
     -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
+    except for integer `v`.
     """
     if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.besseli(v, z)
+        if v != mp.floor(v):
+            if not is_complex(z):
+                # We will get a complex value on the branch cut, so if received real
+                # input and expecting real output, just return NaN.
+                return math.nan
+            # On branch cut, choose branch based on sign of zero
+            z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+    try:
+        result = mp.besseli(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.iv(to_fp(v), to_fp(z)))
+
+    if z.imag == 0 and z.real < 0 and v == mp.floor(v):
+        # No discontinuity for integer v and should return a real value.
+        # Numerical error can cause a small imaginary part here, so just return
+        # the real part.
+        result = result.real
+    return result
 
 
 @reference_implementation()
 def cyl_bessel_i0(z: Real) -> Real:
     """Modified Bessel function of order 0."""
-    return mp.besseli(0, z)
+    return cyl_bessel_i._mp(0, z)
 
 
 @reference_implementation()
 def cyl_bessel_i0e(z: Real) -> Real:
     """Exponentially scaled modified Bessel function of order 0."""
-    return mp.exp(-abs(z.real)) * mp.besseli(0, z)
+    return mp.exp(-abs(z.real)) * cyl_bessel_i0._mp(z)
 
 
 @reference_implementation()
 def cyl_bessel_i1(z: Real)-> Real:
     """Modified Bessel function of order 1."""
-    return mp.besseli(1, z)
+    return cyl_bessel_i._mp(1, z)
 
 
 @reference_implementation()
 def cyl_bessel_i1e(z: Real) -> Real:
     """Exponentially scaled modified Bessel function of order 1."""
-    return mp.exp(-abs(z.real)) * mp.besseli(1, z)
+    return mp.exp(-abs(z.real)) * cyl_bessel_i1._mp(z)
 
 
 @overload
@@ -309,12 +358,10 @@ def cyl_bessel_ie(v, x):
 
     Notes
     -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
+    except for integer `v`.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.exp(-abs(z.real)) * mp.besseli(v, w)
+    return mp.exp(-abs(z.real)) * cyl_bessel_i._mp(v, z)
 
 
 @overload
@@ -329,12 +376,29 @@ def cyl_bessel_j(v, z):
 
     Notes
     -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
+    except for integer `v`.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.besselj(v, z)
+    if z.imag == 0 and z.real < 0 and v != mp.floor(v):
+        if v != mp.floor(v):
+            if not is_complex(z):
+                # We will get a complex value on the branch cut, so if received real
+                # input and expecting real output, just return NaN.
+                return math.nan
+            # On branch cut, choose branch based on sign of zero
+            z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+    try:
+        result = mp.besselj(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.jv(to_fp(v), to_fp(z)))
+    if z.imag == 0 and z.real < 0 and v == mp.floor(v):
+        # No discontinuity for integer v and should return a real value.
+        # Numerical error can cause a small imaginary part here, so just return
+        # the real part.
+        result = result.real
+    return result
 
 
 @reference_implementation()
@@ -361,12 +425,10 @@ def cyl_bessel_je(v, z):
 
     Notes
     -----
-    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
+    Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
+    except for integer `v`.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.exp(-abs(z.imag)) * mp.besselj(v, w)
+    return mp.exp(-abs(z.imag)) * cyl_besselj._mp(v, w)
 
 
 @overload
@@ -384,33 +446,42 @@ def cyl_bessel_k(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.besselk(v, z)
+    try:
+        return mp.besselk(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.kv(to_fp(v), to_fp(z)))
 
 
 @reference_implementation()
 def cyl_bessel_k0(x: Real) -> Real:
     """Modified Bessel function of the second kinf of order 0."""
-    return mp.besselk(0, x)
+    return cyl_bessel_k._mp(0, x)
 
 
 @reference_implementation()
 def cyl_bessel_k0e(x: Real) -> Real:
     """Exponentially scaled modified Bessel function K of order 0."""
-    return mp.exp(x) * mp.besselk(0, x)
+    return mp.exp(x) * cyl_bessel_k0(x)
 
 
 @reference_implementation()
 def cyl_bessel_k1(x: Real) -> Real:
     """Modified Bessel function of the second kind of order 0."""
-    return mp.besselk(1, x)
+    return cyl_bessel_k._mp(1, x)
 
 
 @reference_implementation()
 def cyl_bessel_k1e(x: Real) -> Real:
     """Exponentially scaled modified Bessel function K of order 1."""
-    return mp.exp(x) * mp.besselk(1, x)
+    return mp.exp(x) * cyl_bessel_k1(x)
 
 
 @overload
@@ -427,10 +498,7 @@ def cyl_bessel_ke(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.exp(z) * mp.besselk(v, w)
+    return mp.exp(z) * cyl_bessel_k._mp(v, w)
 
 
 @overload
@@ -448,21 +516,30 @@ def cyl_bessel_y(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.bessely(v, z)
+    try:
+        return mp.bessely(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.yv(to_fp(v), to_fp(z)))
 
 
 @reference_implementation()
 def cyl_bessel_y0(z: Real) -> Real:
     """Bessel function of the second kind of order 0."""
-    return mp.bessely(0, z)
+    return cyl_bessel_y._mp(0, z)
 
 
 @reference_implementation()
 def cyl_bessel_y1(z: Real) -> Real:
     """Bessel function of the second kind of order 1."""
-    return mp.bessely(1, z)
+    return cyl_bessel_y._mp(1, z)
 
 
 @overload
@@ -479,10 +556,7 @@ def cyl_bessel_ye(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.bessely(w, z) * mp.exp(-abs(z.imag))
+    return cyl_bessel_y._mp(v, z) * mp.exp(-abs(z.imag))
 
 
 @overload
@@ -500,9 +574,18 @@ def cyl_hankel_1(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hankel1(v, z)
+    try:
+        return mp.hankel1(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.hankel1(to_fp(v), to_fp(z)))
 
 
 @overload
@@ -519,10 +602,7 @@ def cyl_hankel_1e(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hankel1(v, w) * mp.exp(z * -1j)
+    return cyl_hankel_1._mp(v, z) * mp.exp(z * -1j)
 
 
 @overload
@@ -540,9 +620,18 @@ def cyl_hankel_2(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hankel2(v, z)
+    try:
+        return mp.hankel2(v, z, infprec=1024, zeroprec=1074)
+    except mp.NoConvergence:
+        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
+        # reference for now.
+        return to_mp(special.hankel2(to_fp(v), to_fp(z)))
 
 
 @overload
@@ -559,10 +648,7 @@ def cyl_hankel_2e(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero
-        w = z + mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hankel2(v, w) * mp.exp(z * 1j)
+    return cyl_hankel_2(v, z) * mp.exp(z * 1j)
 
 
 @overload
@@ -734,6 +820,10 @@ def exp1(x):
     Logarithmic singularity at x = 0 with branch cut on (-inf, 0).
     """
     if x.imag == 0 and x.real < 0:
+        if not is_complex(x):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         x += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, x.imag)
     return mp.e1(x)
@@ -778,6 +868,10 @@ def expi(x):
     Logarithmic singularity at x = 0 with branch cut on (-inf, 0).
     """
     if x.imag == 0 and x.real < 0:
+        if not is_complex(x):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         x += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, x.imag)
     return mp.ei(x)
@@ -1015,7 +1109,7 @@ def hyp1f1(a, b, z):
     Entire in a and z
     Meromorphic in b with poles at nonpositive integers
     """
-    return mp.hyp1f1(a, b, z)
+    return mp.hyp1f1(a, b, z, infprec=1024, zeroprec=1074)
 
 
 @overload
@@ -1033,9 +1127,13 @@ def hyp2f1(a, b, c, z):
     Branch point at ``z=1`` with branch cut along ``(1, inf)``.
     """
     if z.imag == 0 and z.real > 1:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hyp2f1(a, b, c, z)
+    return mp.hyp2f1(a, b, c, z, infprec=1024, zeroprec=1074)
 
 
 @reference_implementation()
@@ -1047,9 +1145,13 @@ def hyperu(a: Real, b: Real, z: Real) -> Real:
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hyperu(a, b, z)
+    return mp.hyperu(a, b, z, infprec=1024, zeroprec=1074)
 
 
 @reference_implementation()
@@ -1247,10 +1349,15 @@ def lambertw(z: Complex, k: Integer) -> Complex:
 
     Notes
     -----
-    Branch cut on (-inf, 0). k = 0 corresponds to the principle
-    branch. There are infinitely many branches.
+    Branch cut on (-inf, 0) for ``k != 0``, (-inf, -1/e) for ``k = 0``
+    ``k = 0`` corresponds to the principle branch.
+    There are infinitely many branches.
     """
     if z.imag == 0 and (z.real < 0 and k !=0 or z.real < -1/mp.e):
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero.
         # mpmath's lambertw currently converts z to a complex128 internally,
         # so the small step here can't be smaller than the smallest subnormal.
@@ -1286,6 +1393,10 @@ def log1p(x):
     Branch cut on (-inf, -1)
     """
     if z.imag == 0 and z.real < -1:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.log1p(x)
@@ -1305,15 +1416,12 @@ def log1pmx(z):
     -----
     Branch cut on (-inf, -1)
     """
-    if z.imag == 0 and z.real < -1:
-        # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     # set the precision high enough to avoid catastrophic cancellation.
     # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
     precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
-        result = mp.log1p(z) - z
+        result = log1p._mp(z) - z
     return result
 
 
@@ -1333,6 +1441,10 @@ def loggamma(z):
     Branch cut on (-inf, 0).
     """
     if z.imag == 0 and z.real < 0:
+        if not is_complex(z):
+            # We will get a complex value on the branch cut, so if received real
+            # input and expecting real output, just return NaN.
+            return math.nan
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.loggamma(z)
@@ -1347,7 +1459,7 @@ def log_expit(x: Real) -> Real:
 @reference_implementation()
 def log_wright_bessel(a: Real, b: Real, x: Real) -> Real:
     """Natural logarithm of Wright's generalized Bessel function."""
-    return mp.log(_wright_bessel(a, b, x))
+    return mp.log(wright_bessel.mp(a, b, x))
 
 
 @reference_implementation()
@@ -1832,7 +1944,10 @@ def wofz(x):
 @reference_implementation()
 def wright_bessel(a: Real, b: Real, x: Real) -> Real:
     """Wright's generalized Bessel function."""
-    return _wright_bessel(a, b, x)
+    def term(k):
+        return x**k / (mp.factorial(k) * mp.gamma(a * k + b))
+
+    return mp.nsum(term, [0, mp.inf])
 
 
 @overload
@@ -1843,16 +1958,7 @@ def xlogy(x: Complex, y: Real) -> Complex: ...
 
 @reference_implementation()
 def xlogy(x, y):
-    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``.
-
-    Notes
-    -----
-    Branch cut on (-inf, 0)
-
-    """
-    if z.imag == 0 and z.real < 0:
-        # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
+    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``."""
     if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
         return 0
     return x * mp.log(y)
@@ -1866,16 +1972,7 @@ def xlog1py(x: Complex, y: Real) -> Complex: ...
 
 @reference_implementation()
 def xlog1py(x, y):
-    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``.
-
-    Notes
-    -----
-    Branch cut on (-inf, 0)
-
-    """
-    if z.imag == 0 and z.real < -1:
-        # On branch cut, choose branch based on sign of zero.
-        z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
+    """Compute ``x*log(y)`` so that the result is 0 if ``x = 0``."""
     if x == 0 and not (math.isnan(x.real) or math.isnan(x.imag)):
         return 0
     return x * mp.log1p(y)
@@ -1897,18 +1994,9 @@ def zetac(z: Real) -> Real:
     # set the precision high enough to avoid catastrophic cancellation.
     # As z approaches +inf in the right halfplane:
     # zeta(z) - 1 = 2^-z + O(3^-z).
-
     with mp.workprec(max(mp.prec, int(mp.ceil(z.real)) + 53)):
-
         result = mp.zeta(z) - mp.one
     return result
-
-
-def _wright_bessel(a, b, x):
-    def term(k):
-        return x**k / (mp.factorial(k) * mp.gamma(a * k + b))
-
-    return mp.nsum(term, [0, mp.inf])
 
 
 def solve_bisect(f, xl, xr):
@@ -1979,8 +2067,7 @@ def solve_secant(f, x0, x1, *, maxiter=10000):
 
 
 _exclude = [
-    "Bisection",
-    "Secant",
+    "is_complex"
     "math",
     "mp",
     "np",
@@ -1991,8 +2078,14 @@ _exclude = [
     "solve_secant",
     "special",
     "sys",
-    "Tuple",
+    "to_finite_precision",
     "version",
+    "Bisection",
+    "Complex",
+    "Integer",
+    "Real",
+    "Secant",
+    "Tuple",
 ]
 
 __all__ = [s for s in dir() if not s.startswith("_") and s not in _exclude]
