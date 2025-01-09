@@ -308,8 +308,8 @@ def cyl_bessel_i(v, z):
             # On branch cut, choose branch based on sign of zero
             z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        result = mp.besseli(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        result = mp.besseli(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.iv(to_fp(v), to_fp(z)))
@@ -388,8 +388,8 @@ def cyl_bessel_j(v, z):
             # On branch cut, choose branch based on sign of zero
             z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        result = mp.besselj(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        result = mp.besselj(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.jv(to_fp(v), to_fp(z)))
@@ -453,8 +453,8 @@ def cyl_bessel_k(v, z):
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        return mp.besselk(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        return mp.besselk(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.kv(to_fp(v), to_fp(z)))
@@ -523,8 +523,8 @@ def cyl_bessel_y(v, z):
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        return mp.bessely(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        return mp.bessely(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.yv(to_fp(v), to_fp(z)))
@@ -581,8 +581,8 @@ def cyl_hankel_1(v, z):
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        return mp.hankel1(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        return mp.hankel1(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.hankel1(to_fp(v), to_fp(z)))
@@ -627,8 +627,8 @@ def cyl_hankel_2(v, z):
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
     try:
-        return mp.hankel2(v, z, infprec=1024, zeroprec=1074)
-    except mp.NoConvergence:
+        return mp.hankel2(v, z)
+    except (mp.NoConvergence, ValueError):
         # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
         # reference for now.
         return to_mp(special.hankel2(to_fp(v), to_fp(z)))
@@ -1109,7 +1109,7 @@ def hyp1f1(a, b, z):
     Entire in a and z
     Meromorphic in b with poles at nonpositive integers
     """
-    return mp.hyp1f1(a, b, z, infprec=1024, zeroprec=1074)
+    return mp.hyp1f1(a, b, z)
 
 
 @overload
@@ -1133,7 +1133,7 @@ def hyp2f1(a, b, c, z):
             return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hyp2f1(a, b, c, z, infprec=1024, zeroprec=1074)
+    return mp.hyp2f1(a, b, c, z)
 
 
 @reference_implementation()
@@ -1151,7 +1151,7 @@ def hyperu(a: Real, b: Real, z: Real) -> Real:
             return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hyperu(a, b, z, infprec=1024, zeroprec=1074)
+    return mp.hyperu(a, b, z)
 
 
 @reference_implementation()
