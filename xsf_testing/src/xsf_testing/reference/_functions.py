@@ -139,7 +139,7 @@ def bei(x: Real) -> Real:
 @reference_implementation()
 def beip(x: Real) -> Real:
     """Derivative of the Kelvin function bei."""
-    return mp.diff(bei._mp, x, n=1)
+    return to_mp(special.beip(to_fp(x)))
 
 
 @reference_implementation()
@@ -151,7 +151,7 @@ def ber(x: Real) -> Real:
 @reference_implementation()
 def berp(x: Real) -> Real:
     """Derivative of the Kelvin function ber."""
-    return mp.diff(bei._mp, x, n=1)
+    return to_mp(special.berp(to_fp(x)))
 
 
 @reference_implementation()
@@ -1124,16 +1124,25 @@ def hyp2f1(a, b, c, z):
 
     Notes
     -----
-    Branch point at ``z=1`` with branch cut along ``(1, inf)``.
+    Branch point at ``z=1`` with branch cut along ``(1, inf)``
+    except for a or b a non-positive integer, in which case hyp2f1 reduces
+    to a polynomial.
     """
     if z.imag == 0 and z.real > 1:
-        if not is_complex(z):
-            # We will get a complex value on the branch cut, so if received real
-            # input and expecting real output, just return NaN.
-            return math.nan
-        # On branch cut, choose branch based on sign of zero
-        z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.hyp2f1(a, b, c, z)
+        if not (a == mp.floor(a) or b == mp.floor(b)):
+            if not is_complex(z):
+                # We will get a complex value on the branch cut, so if received real
+                # input and expecting real output, just return NaN.
+                return math.nan
+            # On branch cut, choose branch based on sign of zero
+            z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+    try:
+        return mp.hyp2f1(a, b, c, z)
+    except ZeroDivisionError:
+        return mp.inf
+    except Exception:
+        # mpmath can't do it it, so fall back to SciPy 1.15.
+        return to_mp(special.hyp2f1(to_fp(a), to_fp(b), to_fp(c), to_fp(z)))
 
 
 @reference_implementation()
@@ -1279,16 +1288,16 @@ def kei(x: Real) -> Real:
 @reference_implementation()
 def keip(x: Real) -> Real:
     """Derivative of the Kelvin function kei."""
-    return mp.diff(kei._mp, x, n=1)
+    return to_mp(special.keip(to_fp(x)))
 
 
-@reference_implementation(uses_mp=False)
+@reference_implementation()
 def kelvin(x: Real) -> Tuple[Complex, Complex, Complex, Complex]:
     """Kelvin functions as complex numbers."""
-    be = complex(ber(x), bei(x))
-    ke = complex(ker(x), kei(x))
-    bep = complex(berp(x), beip(x))
-    kep = complex(kerp(x), keip(x))
+    be = mp.mpc(ber._mp(x), bei._mp(x))
+    ke = mp.mpc(ker._mp(x), kei._mp(x))
+    bep = mp.mpc(berp._mp(x), beip._mp(x))
+    kep = mp.mpc(kerp._mp(x), keip._mp(x))
     return be, ke, bep, kep
 
 
@@ -1301,7 +1310,7 @@ def ker(x: Real) -> Real:
 @reference_implementation()
 def kerp(x: Real) -> Real:
     """Derivative of the Kelvin function kerp."""
-    return mp.diff(ker._mp, x, n=1)
+    return to_mp(special.kerp(to_fp(x)))
 
 
 @reference_implementation(uses_mp=False)
@@ -1612,8 +1621,8 @@ def owens_t(h: Real, a: Real) -> Real:
 def pbdv(v: Real, x: Real) -> Tuple[Real, Real]:
     """Parabolic cylinder function D."""
     d = mp.pcfd(v, x)
-    dp = mp.diff(lambda t: mp.pcfd(v, t), x)
-    return d, dp
+    _, dp = special.pbdv(to_fp(v), to_fp(x))
+    return d, to_mp(dp)
 
 
 @reference_implementation()
@@ -1622,16 +1631,16 @@ def pbvv(v: Real, x: Real) -> Tuple[Real, Real]:
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*v), b=2))) + 53)):
         # Set precision to guarantee -v - 0.5 retains precision for very small v.
         d = mp.pcfv(-v - 0.5, x)
-        dp = mp.diff(lambda t: mp.pcfv(-v - 0.5, t), x)
-    return d, dp
+        _, dp = special.pbvv(to_fp(v), to_fp(x))
+    return d, to_mp(dp)
 
 
 @reference_implementation()
 def pbwa(v: Real, x: Real) -> Tuple[Real, Real]:
     """Parabolic cylinder function W."""
     d = mp.pcfw(v, x)
-    dp = mp.diff(lambda t: mp.pcfw(v, t), x)
-    return d, dp
+    _, dp = special.pbwa(to_fp(v), to_fp(x))
+    return d, to_mp(dp)
 
 
 @reference_implementation()
