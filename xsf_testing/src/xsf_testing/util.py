@@ -96,7 +96,7 @@ def _parse_column(col, dtype):
     raise ValueError(f"unsupported dtype: {dtype}")
 
 
-def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
+def _traced_cases_to_parquet(funcname, infiles, outpath, filename_prefix):
     os.makedirs(outpath, exist_ok=True)
     dtype_map = {
         "f": np.float32,
@@ -143,6 +143,7 @@ def _traced_cases_to_parquet(infiles, outpath, filename_prefix):
             metadata = {
                 b"in": in_types.encode("ascii"),
                 b"out": out_types.encode("ascii"),
+                b"function": funcname.encode("ascii")
             }
             df = df.replace_schema_metadata(metadata)
             pq.write_table(df,
