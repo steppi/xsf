@@ -19,15 +19,11 @@ def get_signature_from_type_hints(type_hints):
                 continue
             else:
                 raise ValueError
-        if np.issubdtype(val, np.number):
+        if isinstance(val, typing._GenericAlias) or typing.get_origin(val) is tuple:
+            output_types = typing.get_args(val)
+        else:
             output_types = (val, )
-            continue
-        if (
-                not isinstance(val, typing._GenericAlias)
-                or typing.get_origin(val) is not tuple
-        ):
-            raise ValueError
-        output_types = typing.get_args(val)
+
     return (tuple(input_types), output_types)
 
 
@@ -122,7 +118,7 @@ def process_output(args, output_types):
                 else:
                     # Expected a real result, but got complex. Convention is to return
                     # nan in this case.
-                    output.append(math.nan)
+                    output.append(output_type("nan"))
         else:
             if np.issubdtype(output_type, np.floating):
                 output.append(output_type(arg))
@@ -175,7 +171,7 @@ class reference_implementation:
                 result = func(*args)
                 if not isinstance(result, tuple):
                     result = (result, )
-                    return process_output(result, output_types)
+                return process_output(result, output_types)
         wrapper.__annotations__ =  typing.get_type_hints(func)
         setattr(wrapper, "_mp", func)
         return wrapper
