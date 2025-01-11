@@ -24,6 +24,7 @@ Real = np.floating
 Complex = np.complexfloating
 
 
+
 def is_complex(x):
     """Check if x is a relevant complex type
 
@@ -684,6 +685,12 @@ def digamma(x):
     -----
     Poles at nonpositive integers.
     """
+    if x == 0.0:
+        if isinstance(x, float):
+            return -math.copysign(mp.inf, x)
+        return mp.nan
+    if x.real < 0 and x.imag == 0 and x.real == mp.floor(x.real):
+        return mp.nan
     return mp.digamma(x)
 
 
@@ -929,20 +936,30 @@ def exprel(x: Real) -> Real:
 @reference_implementation()
 def fdtr(dfn: Real, dfd: Real, x: Real) -> Real:
     """F cumulative distribution function."""
+    if x < 0 or dfn < 0 or dfd < 0:
+        return mp.nan
     x_dfn = x * dfn
-    return mp.betainc(dfn / 2, dfd / 2, 0, x_dfn / (dfd + x_dfn), regularized=True)
+    return _betainc._mp(dfn / 2, dfd / 2, 0, x_dfn / (dfd + x_dfn))
 
 
 @reference_implementation()
 def fdtrc(dfn: Real, dfd: Real, x: Real) -> Real:
     """F survival function."""
+    if x < 0 or dfn < 0 or dfd < 0:
+        return mp.nan
     x_dfn = x * dfn
-    return mp.betainc(dfn / 2, dfd / 2, x_dfn / (dfd + x_dfn), 1.0, regularized=True)
+    return betaincc._mp(dfn / 2, dfd / 2, x_dfn / (dfd + x_dfn))
 
 
 @reference_implementation()
 def fdtri(dfn: Real, dfd: Real, p: Real) -> Real:
     """F cumulative distribution function."""
+    if p < 0 or p > 1 or dfn < 0 or dfd < 0:
+        return mp.nan
+    if p == 0:
+        return 0.0
+    if p == 1:
+        return mp.inf
     q = betaincinv._mp(dfn / 2, dfd / 2, p)
     return q * dfd / ((1 - q) * dfn)
 
@@ -981,7 +998,7 @@ def gamma(x):
         if isinstance(x, float):
             return math.copysign(mp.inf, x)
         return mp.nan
-    if x.real < 0 and x.imag == 0 and x.real == int(x.real):
+    if x.real < 0 and x.imag == 0 and x.real == mp.floor(x.real):
         return mp.nan
     return mp.gamma(x)
 
@@ -1704,6 +1721,8 @@ def pbwa(v: Real, x: Real) -> Tuple[Real, Real]:
 @reference_implementation()
 def pdtr(k: Real, m: Real) -> Real:
     """Poisson cumulative distribution function."""
+    if k < 0 or m < 0:
+        return mp.nan
     k = mp.floor(k)
     return gammaincc._mp(k + 1, m)
 
@@ -1711,13 +1730,23 @@ def pdtr(k: Real, m: Real) -> Real:
 @reference_implementation()
 def pdtrc(k: Real, m: Real) -> Real:
     """Poisson survival function."""
+    if k < 0 or m < 0:
+        return mp.nan
     k = mp.floor(k)
     return gammainc._mp(k + 1, m)
 
 
+@overload
+def pdtri(k: Integer, y: Real) -> Real: ...
+@overload
+def pdtri(k: Real, y: Real) -> Real: ...
+
+
 @reference_implementation()
-def pdtri(k: Real, y: Real) -> Real:
+def pdtri(k, y):
     """Inverse of `pdtr` vs m."""
+    if k < 0 or y < 0 or y > 1:
+        return mp.nan
     k = mp.floor(k)
     return gammainccinv._mp(k + 1, y)
 
@@ -2061,6 +2090,12 @@ def zeta(z: Real, q: Real) -> Real:
 def zetac(z: Real) -> Real:
     """Riemann zeta function minus 1."""
     if z == 1.0:
+        return mp.nan
+    if z == mp.inf:
+        return mp.zero
+    if z == -mp.inf:
+        return mp.nan
+    if mp.isnan(z):
         return mp.nan
     # set the precision high enough to avoid catastrophic cancellation.
     # As z approaches +inf in the right halfplane:
