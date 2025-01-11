@@ -218,7 +218,7 @@ def cbrt(x: Real) -> Real:
 
 
 @reference_implementation(uses_mp=False)
-def cem(m: Real, q, Real, x: Real) -> Tuple[Real, Real]:
+def cem(m: Real, q: Real, x: Real) -> Tuple[Real, Real]:
     """Even Mathieu function and its derivative."""
     return special.mathieu_cem(m, q, x)
 
@@ -353,7 +353,7 @@ def cyl_bessel_ie(v: Real, z: Complex) -> Complex: ...
 
 
 @reference_implementation()
-def cyl_bessel_ie(v, x):
+def cyl_bessel_ie(v, z):
     """Exponentially scaled modified Bessel function of the first kind.
 
     Notes
@@ -498,7 +498,7 @@ def cyl_bessel_ke(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    return mp.exp(z) * cyl_bessel_k._mp(v, w)
+    return mp.exp(z) * cyl_bessel_k._mp(v, z)
 
 
 @overload
@@ -648,7 +648,7 @@ def cyl_hankel_2e(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
-    return cyl_hankel_2(v, z) * mp.exp(z * 1j)
+    return cyl_hankel_2._mp(v, z) * mp.exp(z * 1j)
 
 
 @overload
@@ -717,15 +717,24 @@ def ellipk(m: Real) -> Real:
 @reference_implementation()
 def ellipkinc(phi: Real, m: Real) -> Real:
     """Incomplete elliptic integral of the first kind."""
+    if m > 1:
+        # Only the real case is implemented here. If we add a complex overload,
+        # this should actually handle m > 1.
+        return mp.nan
+    if not mp.isfinite(phi) or mp.isnan(m):
+        # mpmath doesn't handle these cases, use self reference for now.
+        return to_mp(special.ellipkinc(to_fp(phi), to_fp(m)))
     return mp.ellipf(phi, m)
 
 
 @reference_implementation()
 def ellipkm1(p: Real) -> Real:
     """Complete elliptic integral of the first kind around m = 1."""
+    if p == 0:
+        return ellipk._mp(1)
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))))):
         # set the precision high enough that mp.one - p != 1
-        result = mp.ellipk(1 - p)
+        result = ellipk._mp(1 - p)
     return result
 
 
@@ -1077,7 +1086,7 @@ def gammasgn(x: Real) -> Real:
     """Sign of the gamma function."""
     if x == 0.0:
         return math.copysign(1.0, x)
-    if x < 0 and x == int(x):
+    if x == -mp.inf or x < 0 and x == int(x):
         return mp.nan
     return mp.sign(mp.gamma(x))
 
@@ -1350,13 +1359,13 @@ def kolmogci(x: Real) -> Real:
 @reference_implementation(uses_mp=False)
 def kolmogi(x: Real) -> Real:
     """Inverse Survival Function of Kolmogorov distribution."""
-    return special._ufuncs._kolmogi(x)
+    return special.kolmogi(x)
 
 
 @reference_implementation(uses_mp=False)
 def kolmogorov(x: Real) -> Real:
     """Survival Function of Kolmogorov distribution."""
-    return special._ufuncs._kolmogorov(x)
+    return special.kolmogorov(x)
 
 
 @reference_implementation(uses_mp=False)
@@ -1399,8 +1408,12 @@ def lanczos_sum_expg_scaled(z: Real) -> Real:
 
 @reference_implementation()
 def lgam1p(x: Real) -> Real:
-    """Logarithm of gamma(x + 1)."""
-    return mp.log(mp.gamma(x + 1))
+    """Logarithm of abs(gamma(x + 1))."""
+    if x == 0:
+        return mp.zero
+    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
+        # set the precision high enough to resolve 1 + x.
+        return gammaln._mp(x + 1)
 
 
 @overload
@@ -1563,6 +1576,10 @@ def ndtri(y: Real) -> Real:
     """Inverse of `ndtr` vs x."""
     if not 0 <= y <= 1:
         return math.nan
+    if y == 0:
+        return -mp.inf
+    if y == 1:
+        return mp.inf
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*y), b=2))) + 53)):
         # set the precision high enough to resolve 2*y - 1
         result = mp.sqrt(2) * mp.erfinv(2*y - 1)
@@ -1778,9 +1795,9 @@ def rgamma(z: Complex) -> Complex: ...
 @reference_implementation()
 def rgamma(z):
     """Reciprocal of the gamma function."""
-    if x == 0.0:
-        return x
-    if x < 0 and x == int(x):
+    if z == 0.0:
+        return z
+    if z.imag == 0 and z.real < 0 and z.real == mp.floor(z.real):
         return 0.0
     return mp.one / mp.gamma(z)
 
