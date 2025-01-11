@@ -1394,8 +1394,8 @@ def log1p(z: Complex) -> Complex: ...
 
 
 @reference_implementation()
-def log1p(x):
-    """Logarithm of x + 1.
+def log1p(z):
+    """Logarithm of z + 1.
 
     Notes
     -----
@@ -1408,7 +1408,7 @@ def log1p(x):
             return math.nan
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
-    return mp.log1p(x)
+    return mp.log1p(z)
 
 
 @overload
@@ -1419,7 +1419,7 @@ def log1pmx(z: Complex) -> Complex: ...
 
 @reference_implementation()
 def log1pmx(z):
-    """log(x + 1) - x.
+    """log(z + 1) - z.
 
     Notes
     -----
@@ -1427,7 +1427,9 @@ def log1pmx(z):
     """
     # set the precision high enough to avoid catastrophic cancellation.
     # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
-    precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
+    if z == 0:
+        return mp.zero
+    precision = min(int(mp.ceil(-2*mp.log(abs(z), b=2))), 1024) + 53
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
         result = log1p._mp(z) - z
