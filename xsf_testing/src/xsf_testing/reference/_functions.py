@@ -301,6 +301,11 @@ def cyl_bessel_i(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
     except for integer `v`.
     """
+    if v == mp.floor(v) and v < 0:
+        # Use symmetry iv(n, z) == iv(-n, z) for integers n.
+        # https://dlmf.nist.gov/10.27#E1
+        # mpmath has an easier time with positive v.
+        v = -v
     if z.imag == 0 and z.real < 0:
         if v != mp.floor(v):
             if not is_complex(z):
@@ -309,11 +314,14 @@ def cyl_bessel_i(v, z):
                 return math.nan
             # On branch cut, choose branch based on sign of zero
             z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+
+    if min(abs(v), abs(z)) > 1e3:
+        # mpmath can hang indefinitely for some large values of v and z.
+        return to_mp(special.iv(to_fp(v), to_fp(z)))
+
     try:
         result = mp.besseli(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.iv(to_fp(v), to_fp(z)))
 
     if z.imag == 0 and z.real < 0 and v == mp.floor(v):
@@ -392,9 +400,8 @@ def cyl_bessel_j(v, z):
     try:
         result = mp.besselj(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.jv(to_fp(v), to_fp(z)))
+
     if z.imag == 0 and z.real < 0 and v == mp.floor(v):
         # No discontinuity for integer v and should return a real value.
         # Numerical error can cause a small imaginary part here, so just return
@@ -457,8 +464,6 @@ def cyl_bessel_k(v, z):
     try:
         return mp.besselk(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.kv(to_fp(v), to_fp(z)))
 
 
@@ -471,7 +476,7 @@ def cyl_bessel_k0(x: Real) -> Real:
 @reference_implementation()
 def cyl_bessel_k0e(x: Real) -> Real:
     """Exponentially scaled modified Bessel function K of order 0."""
-    return mp.exp(x) * cyl_bessel_k0(x)
+    return mp.exp(x) * cyl_bessel_k0._mp(x)
 
 
 @reference_implementation()
@@ -483,7 +488,7 @@ def cyl_bessel_k1(x: Real) -> Real:
 @reference_implementation()
 def cyl_bessel_k1e(x: Real) -> Real:
     """Exponentially scaled modified Bessel function K of order 1."""
-    return mp.exp(x) * cyl_bessel_k1(x)
+    return mp.exp(x) * cyl_bessel_k1._mp(x)
 
 
 @overload
@@ -527,8 +532,6 @@ def cyl_bessel_y(v, z):
     try:
         return mp.bessely(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.yv(to_fp(v), to_fp(z)))
 
 
@@ -585,8 +588,6 @@ def cyl_hankel_1(v, z):
     try:
         return mp.hankel1(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.hankel1(to_fp(v), to_fp(z)))
 
 
@@ -631,8 +632,6 @@ def cyl_hankel_2(v, z):
     try:
         return mp.hankel2(v, z)
     except (mp.NoConvergence, ValueError):
-        # Let's be pragmatic here. If mpmath can't do it, just use SciPy 1.15 as the
-        # reference for now.
         return to_mp(special.hankel2(to_fp(v), to_fp(z)))
 
 
@@ -992,7 +991,7 @@ def gammaincc(a: Real, x: Real) -> Real:
     """Regularized upper incomplete gamma function."""
     try:
         return mp.gammainc(a, x, mp.inf, regularized=True)
-    except mp.NoConvergence:
+    except (mp.NoConvergence, ValueError):
         return to_mp(special.gammaincc(to_fp(a), to_fp(x)))
 
 
@@ -1001,7 +1000,7 @@ def gammainc(a: Real, x: Real) -> Real:
     """Regularized lower incomplete gamma function."""
     try:
         return mp.gammainc(a, 0, x, regularized=True)
-    except mp.NoConvergence:
+    except (mp.NoConvergence, ValueError):
         return to_mp(special.gammainc(to_fp(a), to_fp(x)))
 
 
@@ -1100,7 +1099,7 @@ def gdtr(a: Real, b: Real, x: Real) -> Real:
         # gammainc._mp is not used so that we can fall back to
         # special.gdtr instead of special.gammainc.
         return mp.gammainc(b, 0, a * x, regularized=True)
-    except mp.NoConvergence:
+    except (mp.NoConvergence, ValueError):
         return to_mp(special.gdtr(to_fp(a), to_fp(b), to_fp(x)))
 
 
@@ -1111,7 +1110,7 @@ def gdtrc(a: Real, b: Real, x: Real)-> Real:
         # gammaincc._mp is not used so that we can fall back to
         # special.gdtrc instead of special.gammaincc.
         return mp.gammainc(b, a * x, mp.inf, regularized=True)
-    except mp.NoConvergence:
+    except (mp.NoConvergence, ValueError):
         return to_mp(special.gdtrc(to_fp(a), to_fp(b), to_fp(x)))
 
 
