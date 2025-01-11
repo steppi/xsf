@@ -274,6 +274,8 @@ def cospi(x: Complex) -> Complex: ...
 @reference_implementation()
 def cospi(x):
     """Cosine of pi*x."""
+    # This already does the right thing regarding sign of zero for the case
+    # x - 0.5 an integer.
     return mp.cospi(x)
 
 
@@ -1307,6 +1309,15 @@ def iv_ratio_c(v: Real, x: Real) -> Real:
 @reference_implementation()
 def kei(x: Real) -> Real:
     """Kelvin function kei."""
+    if x < 0:
+        return mp.nan
+    if x >= 1050:
+        # kei increases monotonically to zero from below, can verify that
+        # mp.kei(1050) == mpf('-1.3691040650084756e-324')
+        # smaller than smallest subnormal in double precision.
+        # Return something smaller than smallest subnormal so output processing
+        # can pick up the correct sign of zero.
+        return mp.mpf("-1e324")
     return mp.kei(0, x)
 
 
@@ -1329,6 +1340,13 @@ def kelvin(x: Real) -> Tuple[Complex, Complex, Complex, Complex]:
 @reference_implementation()
 def ker(x: Real) -> Real:
     """Kelvin function ker."""
+    if x < 0:
+        return mp.nan
+    if x >= 1050:
+        # ker decreases monotonically, can verify that
+        # mp.ker(1050) == mpf('1.8167754471810517e-325')
+        # smaller than smallest subnormal in double precision.
+        return mp.zero
     return mp.ker(0, x)
 
 
@@ -1900,6 +1918,10 @@ def sinpi(x):
     ----
     sinpi is an entire function
     """
+    if x == mp.floor(x):
+        # Something smaller than smallest subnormal will be converted to a zero
+        # of the correct sign by output processing.
+        return math.copysign(mp.mpf("1e-324", x))
     return mp.sinpi(x)
 
 
@@ -2128,7 +2150,8 @@ _exclude = [
     "solve_secant",
     "special",
     "sys",
-    "to_finite_precision",
+    "to_fp",
+    "to_mp",
     "version",
     "Bisection",
     "Complex",
