@@ -193,14 +193,14 @@ class reference_implementation:
                 )
                 signal.alarm(self.timeout)
 
-            with mp.workdps(self.dps):
-                args, output_types = process_args(func, *args)
-                result = func(*args)
-                if not isinstance(result, tuple):
-                    result = (result, )
-                result = process_output(result, output_types)
-
-            if self.timeout is not None:
+            try:
+                with mp.workdps(self.dps):
+                    args, output_types = process_args(func, *args)
+                    result = func(*args)
+                    if not isinstance(result, tuple):
+                        result = (result, )
+                    result = process_output(result, output_types)
+            finally:
                 signal.alarm(0)
 
             return result
