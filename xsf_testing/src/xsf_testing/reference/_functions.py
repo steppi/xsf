@@ -232,12 +232,12 @@ def cem_cva(m: Real, q: Real) -> Real:
 @reference_implementation()
 def chdtr(v: Real, x: Real) -> Real:
     """Chi square cumulative distribution function."""
-    return mp.gammainc(v / 2, 0, x / 2, regularized=True)
+    return gammainc._mp(v / 2, x / 2)
 
 @reference_implementation()
 def chdtrc(v: Real, x: Real) -> Real:
     """Chi square survival function."""
-    return mp.gammainc(v / 2, x / 2, mp.inf, regularized=True)
+    return gammainc._mp(v / 2, x / 2)
 
 
 @reference_implementation()
@@ -979,13 +979,19 @@ def gamma(x):
 @reference_implementation()
 def gammaincc(a: Real, x: Real) -> Real:
     """Regularized upper incomplete gamma function."""
-    return mp.gammainc(a, x, mp.inf, regularized=True)
+    try:
+        return mp.gammainc(a, x, mp.inf, regularized=True)
+    except mp.NoConvergence:
+        return to_mp(special.gammaincc(to_fp(a), to_fp(x)))
 
 
 @reference_implementation()
 def gammainc(a: Real, x: Real) -> Real:
     """Regularized lower incomplete gamma function."""
-    return mp.gammainc(a, 0, x, regularized=True)
+    try:
+        return mp.gammainc(a, 0, x, regularized=True)
+    except mp.NoConvergence:
+        return to_mp(special.gammainc(to_fp(a), to_fp(x)))
 
 
 def _gammainccinv_initial_bracket(a, y):
@@ -1038,7 +1044,7 @@ def gammainccinv(a: Real, y: Real) -> Real:
         return math.nan
 
     def f(x):
-        return mp.gammainc(a, x, mp.inf, regularized=True) - y
+        return gammaincc._mp(a, x) - y
 
     xl, xr = _gammainccinv_initial_bracket(a, y)
     if xl >= xr or mp.sign(f(xl)) == mp.sign(f(xr)):
@@ -1079,13 +1085,23 @@ def gammasgn(x: Real) -> Real:
 @reference_implementation()
 def gdtr(a: Real, b: Real, x: Real) -> Real:
     """Gamma distribution cumulative distribution function."""
-    return mp.gammainc(b, 0, a * x, regularized=True)
+    try:
+        # gammainc._mp is not used so that we can fall back to
+        # special.gdtr instead of special.gammainc.
+        return mp.gammainc(b, 0, a * x, regularized=True)
+    except mp.NoConvergence:
+        return to_mp(special.gdtr(to_fp(a), to_fp(b), to_fp(x)))
 
 
 @reference_implementation()
 def gdtrc(a: Real, b: Real, x: Real)-> Real:
     """Gamma distribution survival function."""
-    return mp.gammainc(b, a * x, mp.inf, regularized=True)
+    try:
+        # gammaincc._mp is not used so that we can fall back to
+        # special.gdtrc instead of special.gammaincc.
+        return mp.gammainc(b, a * x, mp.inf, regularized=True)
+    except mp.NoConvergence:
+        return to_mp(special.gdtrc(to_fp(a), to_fp(b), to_fp(x)))
 
 
 @reference_implementation(uses_mp=False)
@@ -1474,8 +1490,14 @@ def log_wright_bessel(a: Real, b: Real, x: Real) -> Real:
 
 
 @reference_implementation()
-def logit(x: Real) -> Real:
+def logit(p: Real) -> Real:
     """Logit function ``logit(p) = log(p/(1 - p))``"""
+    if p == 0:
+        return -mp.inf
+    if p == 1:
+        return mp.inf
+    if p < 0 or p > 1:
+        return mp.nan
     with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))) + 53)):
         # set the precision high enough to resolve 1 - p.
         result = mp.log(p/(1-p))
