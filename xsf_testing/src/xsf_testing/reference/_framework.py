@@ -1,6 +1,7 @@
 import functools
 import math
 import numpy as np
+import signal
 import typing
 
 from mpmath import mp
@@ -133,10 +134,29 @@ def process_output(args, output_types):
     return output[0] if len(output) == 1 else output
 
 
+def get_timeout_handler(self, funcname):
+    def timeout_handler(signum, frame):
+        raise TimeoutError(
+            f"Reference implementation {funcname} timed out after"
+            f" {timeout} seconds."
+
+        )
+    return timeout_handler
+
+
 class reference_implementation:
-    def __init__(self, *, dps=100, uses_mp=True):
+    def __init__(self, *, dps=100, uses_mp=True, timeout=3):
         self.dps = dps
+        self.timeout = timeout
         self.uses_mp = uses_mp
+
+    def _get_timeout_handler(self, funcname):
+        def timeout_handler(signum, frame):
+            raise TimeoutError(
+                f"Reference implementation {funcname} timed out after"
+                f" {self.timeout} seconds."
+            )
+        return timeout_handler
 
     def __call__(self, func):
         if not self.uses_mp:
@@ -164,14 +184,27 @@ class reference_implementation:
                 f" -> {return_type}: ...\n"
             )
         exec(annotations_code)
+
         @functools.wraps(func)
         def wrapper(*args):
+            if self.timeout is not None:
+                signal.signal(
+                    signal.SIGALRM, self._get_timeout_handler(func.__name__)
+                )
+                signal.alarm(self.timeout)
+
             with mp.workdps(self.dps):
                 args, output_types = process_args(func, *args)
                 result = func(*args)
                 if not isinstance(result, tuple):
                     result = (result, )
-                return process_output(result, output_types)
+                result = process_output(result, output_types)
+
+            if self.timeout is not None:
+                signal.alarm(0)
+
+            return result
+
         wrapper.__annotations__ =  typing.get_type_hints(func)
         setattr(wrapper, "_mp", func)
         return wrapper
