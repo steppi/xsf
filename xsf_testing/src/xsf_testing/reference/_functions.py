@@ -2205,6 +2205,8 @@ def zetac(z: Real) -> Real:
     # set the precision high enough to avoid catastrophic cancellation.
     # As z approaches +inf in the right halfplane:
     # zeta(z) - 1 = 2^-z + O(3^-z).
+    if z == 1:
+        return mp.nan
     precision = int(mp.ceil(z.real)) + 53 if abs(z.real) < 1 else 0
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
