@@ -1000,7 +1000,7 @@ def exprel(x: Real) -> Real:
         return mp.one
     # set the precision high enough to avoid catastrophic cancellation
     precision = int(mp.ceil(-mp.log(abs(x), b=2))) + 53 if 0 < abs(x) < 1 else 0
-    precision = max(mp.prec, prec)
+    precision = max(mp.prec, precision)
     with mp.workprec(precision):
         # Near 0, mp.exp(x) - 1 = x + O(x^2)
         result = (mp.exp(x) - 1) / x
@@ -1572,7 +1572,7 @@ def log_expit(x: Real) -> Real:
     return mp.log(mp.sigmoid(x))
 
 
-@reference_implementation()
+@reference_implementation(timeout=10)
 def log_wright_bessel(a: Real, b: Real, x: Real) -> Real:
     """Natural logarithm of Wright's generalized Bessel function."""
     return mp.log(wright_bessel._mp(a, b, x))
