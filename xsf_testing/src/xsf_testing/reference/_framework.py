@@ -145,10 +145,11 @@ def get_timeout_handler(self, funcname):
 
 
 class reference_implementation:
-    def __init__(self, *, dps=100, uses_mp=True, timeout=3):
+    def __init__(self, *, dps=100, uses_mp=True, timeout=3, nan_invalid=True):
         self.dps = dps
         self.timeout = timeout
         self.uses_mp = uses_mp
+        self.nan_invalid = nan_invalid
 
     def _get_timeout_handler(self, funcname):
         def timeout_handler(signum, frame):
@@ -196,9 +197,12 @@ class reference_implementation:
             try:
                 with mp.workdps(self.dps):
                     args, output_types = process_args(func, *args)
-                    result = func(*args)
-                    if not isinstance(result, tuple):
-                        result = (result, )
+                    if self.nan_invalid and any([mp.isnan(x) for x in args]):
+                        result = tuple(mp.nan for _ in range(len(output_types)))
+                    else:
+                        result = func(*args)
+                        if not isinstance(result, tuple):
+                            result = (result, )
                     result = process_output(result, output_types)
             finally:
                 signal.alarm(0)

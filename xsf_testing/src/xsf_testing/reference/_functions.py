@@ -104,25 +104,55 @@ def airye(z):
     return eai, eaip, ebi, ebip
 
 
+@overload
+def bdtr(k: Real, n: Integer, p: Real) -> Real: ...
+@overload
+def bdtr(k: Real, n: Real, p: Real) -> Real: ...
+
+
 @reference_implementation()
-def bdtr(k: Real, n: Real, p: Real) -> Real:
+def bdtr(k, n, p):
     """Binomial distribution cumulative distribution function."""
     k, n = mp.floor(k), mp.floor(n)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))) + 53)):
-        # set the precision high enough that mp.one - p != 1
-        result = mp.betainc(n - k, k + 1, 0, 1 - p, regularized=True)
+    if p > 1 or p < 0 or k < 0 or n < 0 or k > n or mp.isinf(n):
+        return mp.nan
+    if k == n:
+        return mp.one
+    # set the precision high enough that mp.one - p != 1
+    precision = int(mp.ceil(-mp.log(abs(p), b=2))) + 53 if 0 < abs(p) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
+        result = betainc._mp(n - k, k + 1, 1 - p)
     return result
 
 
+@overload
+def bdtrc(k: Real, n: Integer, p: Real) -> Real: ...
+@overload
+def bdtrc(k: Real, n: Real, p: Real) -> Real: ...
+
+
 @reference_implementation()
-def bdtrc(k: Real, n: Real, p: Real) -> Real:
+def bdtrc(k, n, p):
     """Binomial distribution survival function."""
+    if p > 1 or p < 0 or k < 0 or n < 0 or k > n or mp.isinf(n):
+        return mp.nan
     k, n = mp.floor(k), mp.floor(n)
-    return mp.betainc(k + 1, n - k, 0, p, regularized=True)
+    if k == n:
+        return mp.zero
+    return betainc._mp(k + 1, n - k, p)
+
+
+@overload
+def bdtri(k: Real, n: Integer, y: Real) -> Real: ...
+@overload
+def bdtri(k: Real, n: Real, y: Real) -> Real: ...
 
 
 @reference_implementation()
-def bdtri(k: Real, n: Real, y: Real) -> Real:
+def bdtri(k, n, y):
+    if y > 1 or y < 0 or k < 0 or n < 0 or k > n or mp.isinf(n):
+        return mp.nan
     """Inverse function to `bdtr` with respect to `p`."""
     k, n = mp.floor(k), mp.floor(n)
     def f(p):
@@ -263,11 +293,11 @@ def cosm1(x: Real) -> Real:
     """cos(x) - 1 for use when x is near zero."""
     # set the precision high enough to avoid catastrophic cancellation
     # cos(x) - 1 = x^2/2 + O(x^4) for x near 0
-    if x == 0:
-        return mp.zero
     if not mp.isfinite(x):
         return mp.nan
-    precision = min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53
+    precision = (
+        min(int(mp.ceil(-2*mp.log(abs(x), b=2))), 1024) + 53 if 0 < abs(x) < 1 else 0
+    )
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
         result =  mp.cos(x) - mp.one
@@ -398,6 +428,12 @@ def cyl_bessel_j(v, z):
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``
     except for integer `v`.
     """
+    if v < 0 and v == mp.floor(v):
+        v = -v
+        prefactor = (-1)**v
+    else:
+        prefactor = 1.0
+
     if z.imag == 0 and z.real < 0 and v != mp.floor(v):
         if v != mp.floor(v):
             if not is_complex(z):
@@ -406,10 +442,14 @@ def cyl_bessel_j(v, z):
                 return math.nan
             # On branch cut, choose branch based on sign of zero
             z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+
+    if min(abs(v), abs(z)) > 1e3:
+        # mpmath can hang indefinitely for some large values of v and z.
+        return prefactor * to_mp(special.jv(to_fp(v), to_fp(z)))
     try:
-        result = mp.besselj(v, z)
+        result = prefactor * mp.besselj(v, z)
     except (mp.NoConvergence, ValueError):
-        return to_mp(special.jv(to_fp(v), to_fp(z)))
+        return prefactor * to_mp(special.jv(to_fp(v), to_fp(z)))
 
     if z.imag == 0 and z.real < 0 and v == mp.floor(v):
         # No discontinuity for integer v and should return a real value.
@@ -528,7 +568,7 @@ def cyl_bessel_y(v: Real, z: Real) -> Real: ...
 def cyl_bessel_y(v: Real, z: Complex) -> Complex: ...
 
 
-@reference_implementation()
+@reference_implementation(timeout=10)
 def cyl_bessel_y(v, z):
     """Bessel function of the second kind.
 
@@ -536,6 +576,13 @@ def cyl_bessel_y(v, z):
     -----
     Branch point at ``z=0`` with branch cut along ``(-inf, 0)``.
     """
+    if v < 0 and v == mp.floor(v):
+        # https://dlmf.nist.gov/10.4#E1
+        v = -v
+        prefactor = (-1)**v
+    else:
+        prefactor = 1.0
+
     if z.imag == 0 and z.real < 0:
         if not is_complex(z):
             # We will get a complex value on the branch cut, so if received real
@@ -543,10 +590,14 @@ def cyl_bessel_y(v, z):
             return math.nan
         # On branch cut, choose branch based on sign of zero
         z += mp.mpc("0", "1e-1000000000") * math.copysign(mp.one, z.imag)
+
+    if min(abs(v), abs(z)) > 1e3:
+        # mpmath can hang indefinitely for some large values of v and z.
+        return prefactor * to_mp(special.yv(to_fp(v), to_fp(z)))
     try:
-        return mp.bessely(v, z)
-    except (mp.NoConvergence, ValueError):
-        return to_mp(special.yv(to_fp(v), to_fp(z)))
+        return prefactor * mp.bessely(v, z)
+    except (mp.NoConvergence, ValueError, ZeroDivisionError):
+        return prefactor * to_mp(special.yv(to_fp(v), to_fp(z)))
 
 
 @reference_implementation()
@@ -750,16 +801,10 @@ def ellipkinc(phi: Real, m: Real) -> Real:
 @reference_implementation()
 def ellipkm1(p: Real) -> Real:
     """Complete elliptic integral of the first kind around m = 1."""
-    if mp.isnan(p):
-        return mp.nan
-    if p < 0:
-        return mp.nan
-    if p == 0:
-        return ellipk._mp(1)
-    if p == mp.inf:
-        return mp.zero
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))))):
-        # set the precision high enough that mp.one - p != 1
+    # set the precision high enough to resolve 1 - p
+    precision = int(mp.ceil(-mp.log(abs(p), b=2))) + 53 if 0 < abs(p) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result = ellipk._mp(1 - p)
     return result
 
@@ -832,10 +877,13 @@ def erfcx(x):
 def erfcinv(x: Real) -> Real:
     """Inverse of the complementary error function."""
     if not 0 <= x <= 2:
-        return math.nan
+        return mp.nan
     if x == 0:
-        return math.inf
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
+        return mp.inf
+    # set the precision high enough to resolve 1 - x.
+    precision = int(mp.ceil(-mp.log(abs(x), b=2))) + 53 if 0 < abs(x) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result = mp.erfinv(mp.one - x)
     return result
 
@@ -934,9 +982,13 @@ def expm1(x):
     """
     return mp.expm1(x)
 
+@overload
+def expn(n: Integer, x: Real) -> Real: ...
+@overload
+def expn(n: Real, x: Real) -> Real: ...
 
 @reference_implementation()
-def expn(n: Integer, x: Real) -> Real:
+def expn(n, x):
     """Generalized exponential integral En."""
     return mp.expint(n, x)
 
@@ -944,16 +996,12 @@ def expn(n: Integer, x: Real) -> Real:
 @reference_implementation()
 def exprel(x: Real) -> Real:
     """Relative error exponential, (exp(x) - 1)/x."""
-    if mp.isnan(x):
-        return mp.nan
     if x == 0:
         return mp.one
-    if x == mp.inf:
-        return mp.inf
-    if x == -mp.inf:
-        return mp.zero
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
-        # set the precision high enough to avoid catastrophic cancellation
+    # set the precision high enough to avoid catastrophic cancellation
+    precision = int(mp.ceil(-mp.log(abs(x), b=2))) + 53 if 0 < abs(x) < 1 else 0
+    precision = max(mp.prec, prec)
+    with mp.workprec(precision):
         # Near 0, mp.exp(x) - 1 = x + O(x^2)
         result = (mp.exp(x) - 1) / x
     return result
@@ -965,7 +1013,7 @@ def fdtr(dfn: Real, dfd: Real, x: Real) -> Real:
     if x < 0 or dfn < 0 or dfd < 0:
         return mp.nan
     x_dfn = x * dfn
-    return _betainc._mp(dfn / 2, dfd / 2, 0, x_dfn / (dfd + x_dfn))
+    return betainc._mp(dfn / 2, dfd / 2, x_dfn / (dfd + x_dfn))
 
 
 @reference_implementation()
@@ -1029,7 +1077,7 @@ def gamma(x):
     return mp.gamma(x)
 
 
-@reference_implementation(timeout=20)
+@reference_implementation()
 def gammaincc(a: Real, x: Real) -> Real:
     """Regularized upper incomplete gamma function."""
     if a < 0 or x < 0:
@@ -1088,6 +1136,10 @@ def gammasgn(x: Real) -> Real:
 @reference_implementation()
 def gdtr(a: Real, b: Real, x: Real) -> Real:
     """Gamma distribution cumulative distribution function."""
+    if a < 0 or x < 0:
+        return mp.nan
+    if min(a*x, b) > 1e6:
+        return to_mp(special.gdtr(to_fp(a),to_fp(b), to_fp(x)))
     try:
         # gammainc._mp is not used so that we can fall back to
         # special.gdtr instead of special.gammainc.
@@ -1099,6 +1151,10 @@ def gdtr(a: Real, b: Real, x: Real) -> Real:
 @reference_implementation()
 def gdtrc(a: Real, b: Real, x: Real)-> Real:
     """Gamma distribution survival function."""
+    if a < 0 or x < 0:
+        return mp.nan
+    if min(a*x, b) > 1e6:
+        return to_mp(special.gdtrc(to_fp(a), to_fp(b), to_fp(x)))
     try:
         # gammaincc._mp is not used so that we can fall back to
         # special.gdtrc instead of special.gammaincc.
@@ -1128,7 +1184,12 @@ def hyp1f1(a, b, z):
     Entire in a and z
     Meromorphic in b with poles at nonpositive integers
     """
-    return mp.hyp1f1(a, b, z)
+    try:
+        return mp.hyp1f1(a, b, z)
+    except ZeroDivisionError:
+        return mp.inf
+    except Exception:
+        return to_mp(special.hyp1f1(to_fp(a), to_fp(b), to_fp(z)))
 
 
 @overload
@@ -1276,7 +1337,7 @@ def iv_ratio_c(v: Real, x: Real) -> Real:
     denominator = cyl_bessel_i._mp(v - 1, x)
     # Set precision high enough to avoid catastrophic cancellation.
     # For large x, iv_ratio_c(v, x) ~ (v - 0.5) / x
-    if x != 0:
+    if x != 0 and 0 < abs((v - 0.5) / x) < 1:
         precision = int(mp.ceil(-mp.log(abs((v - 0.5)/x), b=2))) + 53
         precision = max(mp.prec, precision)
     else:
@@ -1376,7 +1437,7 @@ def kolmogp(x: Real) -> Real:
 
 
 @reference_implementation()
-def lambertw(z: Complex, k: Integer) -> Complex:
+def lambertw(z: Complex, k: Integer, eps: Real) -> Complex:
     """Lambert W function.
 
     Notes
@@ -1384,6 +1445,8 @@ def lambertw(z: Complex, k: Integer) -> Complex:
     Branch cut on (-inf, 0) for ``k != 0``, (-inf, -1/e) for ``k = 0``
     ``k = 0`` corresponds to the principle branch.
     There are infinitely many branches.
+
+    The tolerance eps is not actually used but included for compatibility.
     """
     if z.imag == 0 and (z.real < 0 and k !=0 or z.real < -1/mp.e):
         if not is_complex(z):
@@ -1413,9 +1476,10 @@ def lgam1p(x: Real) -> Real:
         return mp.zero
     if x == mp.inf:
         return mp.inf
-        
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(x), b=2))) + 53)):
-        # set the precision high enough to resolve 1 + x.
+    # set the precision high enough to resolve 1 + x.
+    precision = int(mp.ceil(-mp.log(abs(x), b=2))) + 53 if 0 < abs(x) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         return gammaln._mp(x + 1)
 
 
@@ -1461,7 +1525,9 @@ def log1pmx(z):
     # Near z = 0 log(1 + z) - z = -z^2/2 + O(z^3)
     if z == 0:
         return mp.zero
-    precision = min(int(mp.ceil(-2*mp.log(abs(z), b=2))), 1024) + 53
+    precision = (
+        min(int(mp.ceil(-2*mp.log(abs(z), b=2))), 1024) + 53 if 0 < abs(z) < 1 else 0
+    )
     precision = max(mp.prec, precision)
     with mp.workprec(precision):
         result = log1p._mp(z) - z
@@ -1482,12 +1548,19 @@ def loggamma(z):
     -----
     Logarithmic singularity at z = 0
     Branch cut on (-inf, 0).
+    Poles at nonnegative integers.
     """
+    if z == 0:
+        if isinstance(z, float):
+            return math.copysign(mp.inf, z)
+        return mp.nan
+    if z.real < 0 and z.imag == 0 and z.real == mp.floor(z.real):
+        return mp.nan
     if z.imag == 0 and z.real < 0:
         if not is_complex(z):
             # We will get a complex value on the branch cut, so if received real
             # input and expecting real output, just return NaN.
-            return math.nan
+            return mp.nan
         # On branch cut, choose branch based on sign of zero.
         z += mp.mpc(0, "1e-1000000000") * math.copysign(mp.one, z.imag)
     return mp.loggamma(z)
@@ -1502,20 +1575,19 @@ def log_expit(x: Real) -> Real:
 @reference_implementation()
 def log_wright_bessel(a: Real, b: Real, x: Real) -> Real:
     """Natural logarithm of Wright's generalized Bessel function."""
-    return mp.log(wright_bessel.mp(a, b, x))
+    return mp.log(wright_bessel._mp(a, b, x))
 
 
 @reference_implementation()
 def logit(p: Real) -> Real:
     """Logit function ``logit(p) = log(p/(1 - p))``"""
-    if p == 0:
-        return -mp.inf
     if p == 1:
         return mp.inf
     if p < 0 or p > 1:
         return mp.nan
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(p), b=2))) + 53)):
-        # set the precision high enough to resolve 1 - p.
+    # set the precision high enough to resolve 1 - p.
+    precision = int(mp.ceil(-mp.log(abs(p), b=2))) + 53 if 0 < abs(p) < 1 else 0
+    with mp.workprec(max(mp.prec, precision)):
         result = mp.log(p/(1-p))
     return result
 
@@ -1556,16 +1628,38 @@ def msm2(m: Real, q: Real, x: Real) -> Tuple[Real, Real]:
     return special.mathieu_modsem2(m, q, x)
 
 
+@overload
+def nbdtr(k: Integer, n: Integer, p: Real) -> Real: ...
+@overload
+def nbdtr(k: Real, n: Real, p: Real) -> Real: ...
+
+
 @reference_implementation()
-def nbdtr(k: Integer, n: Integer, p: Real) -> Real:
+def nbdtr(k, n, p):
     """Negative binomial cumulative distribution function."""
-    return mp.betainc(n, k + 1, 0, p)
+    if (
+            mp.isinf(k) or mp.isinf(n)
+            or p > 1 or p < 0 or k < 0 or n < 0
+    ):
+        return mp.nan
+    return betainc._mp(n, k + 1, p)
+
+
+@overload
+def nbdtrc(k: Integer, n: Integer, p: Real) -> Real: ...
+@overload
+def nbdtrc(k: Real, n: Real, p: Real) -> Real: ...
 
 
 @reference_implementation()
-def nbdtrc(k: Integer, n: Integer, p: Real) -> Real:
+def nbdtrc(k, n, p):
     """Negative binomial survival function."""
-    return mp.betainc(n, k + 1, p, 1)
+    if (
+            mp.isinf(k) or mp.isinf(n)
+            or p > 1 or p < 0 or k < 0 or n < 0
+    ):
+        return mp.nan
+    return betaincc._mp(n, k + 1, p)
 
 
 @overload
@@ -1591,7 +1685,10 @@ def ndtri(y: Real) -> Real:
         return -mp.inf
     if y == 1:
         return mp.inf
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*y), b=2))) + 53)):
+    # set the precision high enough to resolve 2*y - 1
+    precision = int(mp.ceil(-mp.log(abs(2*y), b=2))) + 53 if 0 < abs(2*y) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         # set the precision high enough to resolve 2*y - 1
         result = mp.sqrt(2) * mp.erfinv(2*y - 1)
     return result
@@ -1680,10 +1777,12 @@ def pbdv(v: Real, x: Real) -> Tuple[Real, Real]:
 @reference_implementation()
 def pbvv(v: Real, x: Real) -> Tuple[Real, Real]:
     """Parabolic cylinder function V."""
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(2*v), b=2))) + 53)):
-        # Set precision to guarantee -v - 0.5 retains precision for very small v.
+    # Set precision to guarantee -v - 0.5 retains precision for very small v.
+    precision = int(mp.ceil(-mp.log(abs(2*v), b=2))) + 53 if 0 < abs(2*v) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         d = mp.pcfv(-v - 0.5, x)
-        _, dp = special.pbvv(to_fp(v), to_fp(x))
+    _, dp = special.pbvv(to_fp(v), to_fp(x))
     return d, to_mp(dp)
 
 
@@ -1920,10 +2019,10 @@ def sinpi(x):
     ----
     sinpi is an entire function
     """
-    if x == mp.floor(x):
+    if x.imag == 0 and x.real == mp.floor(x.real):
         # Something smaller than smallest subnormal will be converted to a zero
         # of the correct sign by output processing.
-        return math.copysign(mp.mpf("1e-324", x))
+        return math.copysign(mp.mpf("1e-324"), x.real)
     return mp.sinpi(x)
 
 
@@ -1987,15 +2086,19 @@ def smirnovp(n, d):
     return special._ufuncs._smirnovp(n, d)
 
 
+@overload
+def spence(z: Real) -> Real: ...
+@overload
+def spence(z: Complex) -> Complex: ...
+
+
 @reference_implementation()
-def spence(z: Real) -> Real:
+def spence(z):
     """Spence's function, also known as the dilogarithm."""
-    if not mp.isfinite(z):
-        return mp.nan
-    if z == 0:
-        return mp.polylog(2, 1)
-    with mp.workprec(max(mp.prec, int(mp.ceil(-mp.log(abs(z), b=2))) + 53)):
-        # set the precision high enough that mp.one - z != 1
+    # set the precision high enough that mp.one - z != 1
+    precision = int(mp.ceil(-mp.log(abs(z), b=2))) + 53 if 0 < abs(z) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result = mp.polylog(2, mp.one - z)
     return result
 
@@ -2041,10 +2144,13 @@ def wofz(x):
     return mp.exp(-x**2) * mp.erfc(-mp.j * x)
 
 
-@reference_implementation()
+@reference_implementation(timeout=10)
 def wright_bessel(a: Real, b: Real, x: Real) -> Real:
     """Wright's generalized Bessel function."""
     def term(k):
+        m = a * k + b
+        if m <= 0 and m == mp.floor(m):
+            return mp.zero
         return x**k / (mp.factorial(k) * mp.gamma(a * k + b))
 
     return mp.nsum(term, [0, mp.inf])
@@ -2096,18 +2202,12 @@ def zeta(z: Real, q: Real) -> Real:
 @reference_implementation()
 def zetac(z: Real) -> Real:
     """Riemann zeta function minus 1."""
-    if z == 1.0:
-        return mp.nan
-    if z == mp.inf:
-        return mp.zero
-    if z == -mp.inf:
-        return mp.nan
-    if mp.isnan(z):
-        return mp.nan
     # set the precision high enough to avoid catastrophic cancellation.
     # As z approaches +inf in the right halfplane:
     # zeta(z) - 1 = 2^-z + O(3^-z).
-    with mp.workprec(max(mp.prec, int(mp.ceil(z.real)) + 53)):
+    precision = int(mp.ceil(z.real)) + 53 if abs(z.real) < 1 else 0
+    precision = max(mp.prec, precision)
+    with mp.workprec(precision):
         result = mp.zeta(z) - mp.one
     return result
 
