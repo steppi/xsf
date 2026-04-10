@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "xsf/error.h"
 #include "xsf/stats.h"
 // Force defining the parenthesis operator even when compiling with a compiler
@@ -13,19 +15,19 @@ namespace numpy {
     namespace detail {
         // Helper to wrap a 1D std::vector in a contiguous mdspan.
         template <typename T>
-            auto make_mdspan(std::vector<T>& vec) {
+        auto make_mdspan(std::vector<T>& vec) {
             return std::mdspan<T, std::dextents<ptrdiff_t, 1>>(vec.data(), vec.size());
         }
 
         template <typename T>
-            auto make_mdspan(const std::vector<T>& vec) {
+        auto make_mdspan(const std::vector<T>& vec) {
             return std::mdspan<const T, std::dextents<ptrdiff_t, 1>>(vec.data(), vec.size());
         }
     }
 
     template <typename KMat, typename PMat, typename OutputMat>
     inline void poisson_binom_pmf(KMat k, PMat p, OutputMat out) {
-        using T = typename OuputMat::value_type;
+        using T = typename OutputMat::value_type;
         auto n = p.extent(0);
         auto k_size = k.extent(0);
         auto out_size = out.extent(0);
@@ -55,7 +57,7 @@ namespace numpy {
         auto cdf_view = detail::make_mdspan(cdf);
         xsf::poisson_binom_cdf_all(p, cdf_view);
         for (ptrdiff_t i = 0;  i < k.extent(0); i++) {
-            out(i) = xsf::take_from_discrete_cdff(cdf_view, static_cast<long long int>(k(i)));
+            out(i) = xsf::take_from_discrete_cdf(cdf_view, static_cast<long long int>(k(i)));
         }
     }
 
