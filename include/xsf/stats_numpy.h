@@ -10,6 +10,19 @@
 namespace xsf {
 namespace numpy {
 
+    namespace detail {
+        // Helper to wrap a 1D std::vector in a contiguous mdspan.
+        template <typename T>
+            auto make_mdspan(std::vector<T>& vec) {
+            return std::mdspan<T, std::dextents<ptrdiff_t, 1>>(vec.data(), vec.size());
+        }
+
+        template <typename T>
+            auto make_mdspan(const std::vector<T>& vec) {
+            return std::mdspan<const T, std::dextents<ptrdiff_t, 1>>(vec.data(), vec.size());
+        }
+    }
+
     template <typename KMat, typename PMat, typename OutputMat>
     inline void poisson_binom_pmf(KMat k, PMat p, OutMat out) {
         using T = typename OuputMat::value_type;
@@ -21,7 +34,7 @@ namespace numpy {
             return;
         }
         std::vector<T> pmf(n + 1);
-        std::mdspan<T, std::dextents<ptrdiff_t, 1>> pmf_view(pmf.data(), n + 1);
+        auto pmf_view = detail::make_mdspan(pmf);
         xsf::poisson_binom_pmf_all(p, pmf_view)
         for (ptrdiff_t i = 0;  i < k.extent(0); i++) {
             out(i) = xsf::take_from_pmf(pmf_view, static_cast<long long int>(k(i)));
@@ -39,7 +52,7 @@ namespace numpy {
             return;
         }
         std::vector<T> cdf(n + 1);
-        std::mdspan<T, std::dextents<ptrdiff_t, 1>> cdf_view(cdf.data(), n + 1);
+        auto cdf_view = detail::make_mdspan(cdf);
         xsf::poisson_binom_cdf_all(p, cdf_view)
         for (ptrdiff_t i = 0;  i < k.extent(0); i++) {
             out(i) = xsf::take_from_discrete_cdff(cdf_view, static_cast<long long int>(k(i)));
