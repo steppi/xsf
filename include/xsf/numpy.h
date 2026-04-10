@@ -82,6 +82,8 @@ namespace numpy {
     using cdouble_3d = std::mdspan<cdouble, std::dextents<ptrdiff_t, 3>, std::layout_stride>;
     using cdouble_4d = std::mdspan<cdouble, std::dextents<ptrdiff_t, 4>, std::layout_stride>;
 
+    using long_long_1d = std::mdspan<long long int, std::dextents<ptrdiff_t, 1>, std::layout_stride>;
+
     using autodiff0_float = dual<float, 0>;
     using autodiff0_double = dual<double, 0>;
     using autodiff0_cfloat = dual<cfloat, 0>;
@@ -370,13 +372,9 @@ namespace numpy {
     using ff_F2F3F4 = void (*)(float, float, cfloat_2d, cfloat_3d, cfloat_4d);
     using dd_D2D3D4 = void (*)(double, double, cdouble_2d, cdouble_3d, cdouble_4d);
 
-    // 1 array input, 1 array output
-    using f1_f1 = void (*)(float_1d, float_1d);
-    using d1_d1 = void (*)(double_1d, double_1d);
-
-    // 1 array + an integer input, 1 output
-    using f1q_f = float (*)(float_1d, long long int);
-    using d1q_d = double (*)(double_1d, long long int);
+    // 2 array input, 1 array output
+    using q1f1_f1 = void (*)(long_long_1d, float_1d, float_1d);
+    using q1d1_d1 = void (*)(long_long_1d, double_1d, double_1d);
 
     template <typename Func>
     struct signature_of {
