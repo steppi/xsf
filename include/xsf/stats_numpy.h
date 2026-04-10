@@ -45,7 +45,7 @@ namespace numpy {
 
     template <typename KMat, typename PMat, typename OutputMat>
     inline void poisson_binom_cdf(KMat k, PMat p, OutputMat out) {
-        using T = typename OuputMat::value_type;
+        using T = typename OutputMat::value_type;
         auto n = p.extent(0);
         auto k_size = k.extent(0);
         auto out_size = out.extent(0);
