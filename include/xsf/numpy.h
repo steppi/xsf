@@ -378,7 +378,7 @@ namespace numpy {
 
     // 2 inputs (1 array + 1 scalar), scalar output
     using f1q_f = float (*)(float_1d, long long int);
-    using d1q_d = double (*)(double_1d, long long int):
+    using d1q_d = double (*)(double_1d, long long int);
 
     // 2 array input, 1 array output
     using q1f1_f1 = void (*)(long_long_1d, float_1d, float_1d);
